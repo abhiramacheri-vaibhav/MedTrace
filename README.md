@@ -19,7 +19,7 @@ Prescription medicines pass through manufacturers, distributors, and pharmacies,
 - **Cold chain:** temperature alerts from a simulated IoT sensor
 - **Regulator actions:** certification and recalls
 
-Anyone, including a patient, can look up a batch and see its full history and a simple **"safe to use"** answer.
+Anyone - including a patient, can look up a batch and see its full history and a simple **"safe to use"** answer.
 
 ### Stakeholders and roles
 
