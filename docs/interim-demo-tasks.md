@@ -29,9 +29,9 @@ Tick your box in a PR when it's done. "Done" means merged to `main` and working 
 - [ ] `getHistory` pagination if time allows (not needed for the demo)
 
 ### Rohan: off-chain
-- [ ] `offchain/ipfs/uploadToIpfs.js` uploads a file to Pinata and returns a real CID
-- [ ] `simulateSensor.js` runs against the deployed contract and writes one real temperature alert
-- [ ] If IPFS isn't ready by Tuesday: say so in the group, and we label documents "sample" in the demo
+- [x] `offchain/ipfs/uploadToIpfs.js` uploads a file to Pinata and returns a real CID
+- [ ] `simulateSensor.js` runs against the deployed contract and writes one real temperature alert (code done and tested locally; waiting on `SENSOR_ROLE` for the sensor wallet on Amoy)
+- [x] If IPFS isn't ready by Tuesday: say so in the group, and we label documents "sample" in the demo (not needed: IPFS works)
 
 ### Shrey: web app + recording
 - [x] Front-end scaffold: connect, role detection, factory / distributor / pharmacy / regulator / operator pages, custody timeline, recording mode
