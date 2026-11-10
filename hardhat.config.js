@@ -31,7 +31,7 @@ module.exports = {
   networks: {
     localhost: { url: "http://127.0.0.1:8545" },
     amoy: {
-      url: AMOY_RPC_URL || "https://rpc-amoy.polygon.technology",
+      url: AMOY_RPC_URL || "https://polygon-amoy-bor-rpc.publicnode.com",
       chainId: 80002,
       accounts: deployerAccounts(PRIVATE_KEY),
     },

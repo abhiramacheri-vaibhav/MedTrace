@@ -178,7 +178,7 @@ BATCH_ID=1 npm run iot:simulate
 
 ## 8. Deployment to Polygon Amoy Testnet
 
-1. Add the Polygon Amoy network to MetaMask (Chain ID `80002`, RPC `https://rpc-amoy.polygon.technology`).
+1. Add the Polygon Amoy network to MetaMask (Chain ID `80002`, RPC `https://polygon-amoy-bor-rpc.publicnode.com`). The older `rpc-amoy.polygon.technology` address no longer resolves.
 2. Get free test POL from the [Polygon faucet](https://faucet.polygon.technology/).
 3. Fill in `.env` (copied from `.env.example`):
    - `PRIVATE_KEY`: the deployer's private key, 64 hex characters. Use a test-only wallet, never one that holds real funds.
@@ -201,7 +201,17 @@ BATCH_ID=1 npm run iot:simulate
    ```
 6. Onboard the other team wallets with `registerParticipant` (through the dApp, Remix, or a Hardhat console).
 
-> The deployed contract address will be added here for the Interim Demo.
+### Deployed contract (Polygon Amoy)
+
+| | |
+|---|---|
+| Contract | [`0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f`](https://amoy.polygonscan.com/address/0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f) |
+| Deployment tx | [`0x28ea0971…0a30d3`](https://amoy.polygonscan.com/tx/0x28ea0971ec33ccd8dc777aebc2f3d047dfe2d077c7a7e8c847384572c90a30d3) |
+| Block | 52478127 (2026-11-10) |
+| Admin (deployer) | `0xfd3E9AaCF697e02F9a186109838C9d2fD4A6dc78` |
+| Chain ID | 80002 |
+
+The same details are in [`deployments/amoy.json`](deployments/amoy.json). To point the dApp at this contract, run `npm run sync-contract -- 0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f amoy` in `frontend/`.
 
 ## 9. Roadmap
 

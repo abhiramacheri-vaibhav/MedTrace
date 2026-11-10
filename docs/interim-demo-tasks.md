@@ -10,9 +10,9 @@ The demo is one insulin batch going factory → distributor → pharmacy → pat
 Tick your box in a PR when it's done. "Done" means merged to `main` and working against `npm run seed:local`.
 
 ### Neric: deployment + tests
-- [ ] Test wallet created, test POL in it, Etherscan API key obtained
+- [x] Test wallet created, test POL in it, Etherscan API key obtained
 - [ ] `npm run deploy:amoy` succeeds; contract verified on `amoy.polygonscan.com`
-- [ ] Contract address + explorer link added to README section 8
+- [x] Contract address + explorer link added to README section 8
 - [x] `REPORT_GAS=true npx hardhat test` output pasted into the README as a table
 - [x] At least two new edge-case tests (e.g. recall after dispense is rejected, non-holder can't hand off)
 
