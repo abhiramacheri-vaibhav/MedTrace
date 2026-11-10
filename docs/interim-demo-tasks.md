@@ -3,7 +3,7 @@
 **Recording due:** Saturday 15 Nov, 11:59 pm (Canvas, one `.txt` with the Zoom link + passcode).
 **We record:** Thursday 13 Nov. **Rehearsal:** Wednesday 12 Nov. **Feature freeze:** Tuesday 11 Nov, end of day.
 
-The demo is one insulin batch going factory → distributor → pharmacy → patient in the web app, plus a regulator recall as the "do not use" case. Five minutes, everyone speaks for about a minute.
+The demo is one insulin batch going factory → distributor → pharmacy → patient in the web app, plus a regulator recall as the "do not use" case. Five minutes, everyone speaks. Speaking parts get assigned once the work has landed.
 
 ## Tasks
 
@@ -37,7 +37,7 @@ Tick your box in a PR when it's done. "Done" means merged to `main` and working 
 - [x] Front-end scaffold: connect, role detection, factory / distributor / pharmacy / regulator / operator pages, custody timeline, recording mode
 - [ ] Polish pass on the role pages after everyone's parts land
 - [ ] Demo data seeded on Amoy (batch #1 walked to the distributor, batch #2 ready to recall)
-- [ ] Script with each person's lines; host the Zoom recording; upload the `.txt`
+- [ ] Demo script; host the Zoom recording; upload the `.txt`
 
 ## How to work
 
@@ -48,12 +48,12 @@ Tick your box in a PR when it's done. "Done" means merged to `main` and working 
 
 ## Demo order (so you know where your part shows up)
 
-| Time | Beat | Speaker |
-|---|---|---|
-| 0:00 | Cold open: patient page shows a recalled batch | Shrey |
-| 0:20 | Status: implemented / in progress / remaining | Maulik |
-| 0:55 | Contract verified on Amoy, app connects | Neric |
-| 1:15 | Main flow: accept → hand off → accept → dispense → patient verify | Shrey drives, Vaibhav narrates |
-| 3:10 | Edge case: regulator recall turns the patient page red | Vaibhav |
-| 3:35 | Code walkthrough: contracts, then off-chain | Maulik, Rohan |
-| 4:35 | Next steps and close | Rohan, Shrey |
+| Time | Beat |
+|---|---|
+| 0:00 | Cold open: patient page shows a recalled batch |
+| 0:20 | Status: implemented / in progress / remaining |
+| 0:55 | Contract verified on Amoy, app connects |
+| 1:15 | Main flow: accept → hand off → accept → dispense → patient verify |
+| 3:10 | Edge case: regulator recall turns the patient page red |
+| 3:35 | Code walkthrough: contracts, then off-chain |
+| 4:35 | Next steps and close |
