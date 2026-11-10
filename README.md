@@ -54,8 +54,8 @@ medtrace/
 │   │   └── IMedTrace.sol         # public interface: types, events, function signatures
 │   └── access/
 │       └── MedTraceAccess.sol    # role-based access control (OpenZeppelin)
-├── test/                         # Hardhat/Chai tests (86 passing)
-│   ├── MedTrace.test.js          # core flow: register, hand-off, dispense, alerts, recall (7)
+├── test/                         # Hardhat/Chai tests (100 passing)
+│   ├── MedTrace.test.js          # core flow, lot lookup, breach dispense rule, history pages (21)
 │   ├── MedTrace.edgecases.test.js  # edge cases: custody, dispensing, expiry, recall, access (55)
 │   └── deploy.test.js            # deploy script: helpers, files it writes, verification fallbacks (24)
 ├── scripts/
@@ -137,24 +137,24 @@ $env:REPORT_GAS = "true"; npx hardhat test
 
 ### Gas report
 
-Measured on the local Hardhat network with Solidity 0.8.24, optimizer on (200 runs) and `evmVersion` cancun, over the full test suite (86 tests). To reproduce, run `REPORT_GAS=true npx hardhat test` (PowerShell form above). Figures are gas units; `-` means the reporter saw only one value.
+Measured on the local Hardhat network with Solidity 0.8.24, optimizer on (200 runs) and `evmVersion` cancun, over the full test suite (100 tests). To reproduce, run `REPORT_GAS=true npx hardhat test` (PowerShell form above). Figures are gas units; `-` means the reporter saw only one value.
 
 | Function | Min | Max | Avg | Calls |
 |---|---:|---:|---:|---:|
-| `registerBatch` | 276,763 | 395,941 | 386,423 | 50 |
-| `certifyBatch` | 65,795 | 207,905 | 187,604 | 7 |
-| `recordTemperatureAlert` | 66,078 | 208,434 | 172,715 | 4 |
-| `attachDocument` | 155,381 | 157,785 | 156,343 | 5 |
-| `recallBatch` | 88,420 | 91,256 | 89,383 | 6 |
-| `registerParticipant` | 55,572 | 75,539 | 75,429 | 367 |
-| `transferCustody` | 72,577 | 75,088 | 73,326 | 34 |
-| `confirmReceipt` | - | - | 72,240 | 26 |
-| `markDispensed` | - | - | 66,819 | 5 |
+| `registerBatch` | 287,196 | 440,478 | 426,343 | 65 |
+| `certifyBatch` | 65,817 | 207,927 | 136,872 | 12 |
+| `recordTemperatureAlert` | 66,100 | 208,456 | 179,768 | 10 |
+| `attachDocument` | 155,369 | 157,785 | 156,180 | 6 |
+| `recallBatch` | 88,384 | 91,256 | 89,140 | 8 |
+| `registerParticipant` | 55,594 | 75,561 | 75,461 | 438 |
+| `transferCustody` | 72,599 | 75,110 | 73,484 | 42 |
+| `confirmReceipt` | - | - | 72,262 | 34 |
+| `markDispensed` | - | - | 66,990 | 7 |
 | `removeParticipant` | - | - | 28,890 | 3 |
 
-**Deployment:** `MedTrace` costs 2,712,475 gas, 4.5 % of the block gas limit (60,000,000 on the local Hardhat network).
+**Deployment:** `MedTrace` costs 3,014,797 gas, 5.0 % of the block gas limit (60,000,000 on the local Hardhat network).
 
-`registerBatch` is the most expensive call because it stores a new batch record with two strings (product name and lot number), plus a history entry that repeats the product name; with a Certificate of Analysis CID it also stores a document and a second history entry. The wide range for `certifyBatch` and `recordTemperatureAlert` comes from the same pattern: when a CID is passed, it is written into the history entry and into a separate document record. Every batch action appends a history entry, so even simple steps such as `confirmReceipt` and `markDispensed` cost around 66,000-73,000 gas. `verifyBatch` and `getHistory` are view functions, so a patient checking a batch sends no transaction and pays nothing.
+`registerBatch` is the most expensive call because it stores a new batch record with two strings (product name and lot number), adds the batch to the lot-number index, and writes a history entry that repeats the product name; with a Certificate of Analysis CID it also stores a document and a second history entry. The wide range for `certifyBatch` and `recordTemperatureAlert` comes from the same pattern: when a CID is passed, it is written into the history entry and into a separate document record. Every batch action appends a history entry, so even simple steps such as `confirmReceipt` and `markDispensed` cost around 66,000-73,000 gas. `verifyBatch` and `getHistory` are view functions, so a patient checking a batch sends no transaction and pays nothing.
 
 The `registerBatch` minimum and average move by a few gas units between runs: the tests derive expiry dates from the current block time, and calldata cost depends on the bytes of that timestamp. All other figures are stable.
 
@@ -205,14 +205,16 @@ BATCH_ID=1 npm run iot:simulate
 
 | | |
 |---|---|
-| Contract | [`0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f`](https://amoy.polygonscan.com/address/0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f) |
-| Deployment tx | [`0x28ea0971…0a30d3`](https://amoy.polygonscan.com/tx/0x28ea0971ec33ccd8dc777aebc2f3d047dfe2d077c7a7e8c847384572c90a30d3) |
-| Block | 52478127 (2026-11-10) |
+| Contract | [`0x2749c1613F6dfF8283434885b985d287AC5FA2B8`](https://amoy.polygonscan.com/address/0x2749c1613F6dfF8283434885b985d287AC5FA2B8) |
+| Deployment tx | [`0xe6d69a10…284de0`](https://amoy.polygonscan.com/tx/0xe6d69a10b7f47e037b84218103a5bdef8aa93e432c068cf513d8e187e4284de0) |
+| Block | 52508013 (2026-11-10) |
 | Admin (deployer) | `0xfd3E9AaCF697e02F9a186109838C9d2fD4A6dc78` |
 | Chain ID | 80002 |
-| Source | [Verified on Polygonscan](https://amoy.polygonscan.com/address/0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f#code) |
+| Source | [Verified on Polygonscan](https://amoy.polygonscan.com/address/0x2749c1613F6dfF8283434885b985d287AC5FA2B8#code) |
 
-The same details are in [`deployments/amoy.json`](deployments/amoy.json). To point the dApp at this contract, run `npm run sync-contract -- 0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f amoy` in `frontend/`.
+The same details are in [`deployments/amoy.json`](deployments/amoy.json). To point the dApp at this contract, run `npm run sync-contract -- 0x2749c1613F6dfF8283434885b985d287AC5FA2B8 amoy` in `frontend/`.
+
+This deployment includes lot-number lookup, the temperature-breach dispense rule and history pagination. It replaces the first deployment at `0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f`, which predates those changes and should no longer be used. Roles and batches do not carry over: every participant has to be registered again on the new contract.
 
 ## 9. Roadmap
 

@@ -1,10 +1,10 @@
 {
   "network": "amoy",
   "chainId": 80002,
-  "address": "0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f",
+  "address": "0x2749c1613F6dfF8283434885b985d287AC5FA2B8",
   "deployer": "0xfd3E9AaCF697e02F9a186109838C9d2fD4A6dc78",
-  "txHash": "0x28ea0971ec33ccd8dc777aebc2f3d047dfe2d077c7a7e8c847384572c90a30d3",
-  "blockNumber": 52478127,
-  "deployedAt": "2026-11-10T08:52:26.000Z",
-  "explorerUrl": "https://amoy.polygonscan.com/address/0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f"
+  "txHash": "0xe6d69a10b7f47e037b84218103a5bdef8aa93e432c068cf513d8e187e4284de0",
+  "blockNumber": 52508013,
+  "deployedAt": "2026-11-10T17:10:32.000Z",
+  "explorerUrl": "https://amoy.polygonscan.com/address/0x2749c1613F6dfF8283434885b985d287AC5FA2B8"
 }
