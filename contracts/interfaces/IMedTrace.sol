@@ -155,7 +155,7 @@ interface IMedTrace {
     /**
      * @notice Pharmacy marks the batch as dispensed to patients (final state).
      * @dev    Only a PHARMACY_ROLE holder that currently holds the batch.
-     *         Rejected if the batch is recalled or expired.
+     *         Rejected if the batch is recalled, expired, or temperature-breached.
      */
     function markDispensed(uint256 batchId) external;
 
@@ -194,8 +194,27 @@ interface IMedTrace {
     /// @notice Full on-chain record of one batch.
     function getBatch(uint256 batchId) external view returns (Batch memory);
 
+    /**
+     * @notice Batch IDs matching a printed lot number, in registration order.
+     * @dev Exact, case-sensitive match; no whitespace normalization. Unknown or
+     *      empty lots return an empty array. Multiple shipments/manufacturers
+     *      can share a lot; callers must inspect each batch's manufacturer.
+     */
+    function getBatchIdsByLot(string calldata lotNumber) external view returns (uint256[] memory);
+
     /// @notice Complete audit trail of one batch, oldest first.
     function getHistory(uint256 batchId) external view returns (HistoryEntry[] memory);
+
+    /**
+     * @notice A slice of the audit trail, oldest first, plus its current total.
+     * @dev Unknown batch IDs revert. Zero limit or offset at/past the end returns
+     *      an empty page. Limit is clamped to the remaining entries.
+     * @param batchId Registered batch ID.
+     * @param offset Zero-based index of the first entry.
+     * @param limit Maximum number of entries to return.
+     */
+    function getHistoryPage(uint256 batchId, uint256 offset, uint256 limit)
+        external view returns (HistoryEntry[] memory entries, uint256 total);
 
     /// @notice All IPFS documents linked to one batch.
     function getDocuments(uint256 batchId) external view returns (Document[] memory);

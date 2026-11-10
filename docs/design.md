@@ -17,7 +17,9 @@ classDiagram
         +certifyBatch()
         +recallBatch()
         +getBatch() view
+        +getBatchIdsByLot() view
         +getHistory() view
+        +getHistoryPage() view
         +getDocuments() view
         +verifyBatch() view
     }
@@ -94,9 +96,36 @@ sequenceDiagram
 | **Recalled and dispensed batches are frozen** | Prevents a recalled batch from re-entering the supply chain. |
 | **`verifyBatch` never reverts** | An unknown ID returns `exists = false`, which the UI shows as "not found, possibly counterfeit". |
 
+## Lot lookup, dispensing, and history reads
+
+`getBatchIdsByLot(lotNumber)` returns every matching batch ID in registration
+order. Matching is exact and case-sensitive, including whitespace; an unknown
+or empty lot returns an empty array. Lot numbers need not be globally unique:
+a manufacturer may register several shipments of the same lot, and different
+manufacturers may reuse a printed number. Patients should inspect each matching
+batch's manufacturer and product using `getBatch` before calling `verifyBatch`.
+The index is written atomically at registration and remains available after
+custody changes, dispensing, or recall.
+
+**Temperature breaches block dispensing on-chain.** `markDispensed` rejects a
+batch with `temperatureBreached == true`, even when it is certified. An alert
+permanently sets this flag, so later certification cannot override the block.
+This matches `verifyBatch`, which already reports breached batches as unsafe.
+Custody transfers remain available for returning or quarantining stock, and the
+regulator may recall it. The contract has no breach-clearance mechanism; adding
+one would require a separate policy and audit trail. Clean, received, unexpired
+batches can still be dispensed by their pharmacy holder.
+
+`getHistory` remains available for existing clients. `getHistoryPage(batchId,
+offset, limit)` returns an oldest-first slice and the current total count. A zero
+limit or an offset at/past the end returns an empty page; unknown batch IDs
+revert. Oversized limits are clamped without arithmetic overflow. History is
+append-only, so offsets remain stable as new entries arrive; clients needing a
+consistent snapshot across calls should pin reads to a block number.
+
 ## Known limitations and planned work
 
 - Batch splitting (one lot shipped to several distributors) is not modeled yet. Each shipment is registered as its own batch.
 - Business data is public on-chain. A production version could use private transactions or zero-knowledge proofs, as MediLedger does.
 - The sensor wallet is trusted. A real system would use signed device readings or an oracle network.
-- `getHistory` returns the whole array; pagination is a TODO if histories grow long.
+- Lot lookup returns all matching IDs in one call; very large lots may eventually need their own pagination.
