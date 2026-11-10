@@ -9,7 +9,7 @@ export const CONFIG = modules["../contract.json"]?.default ?? null;
 
 export const NETWORKS = {
   31337: { name: "local Hardhat network", rpc: "http://127.0.0.1:8545", hex: "0x7a69", currency: "ETH" },
-  80002: { name: "Polygon Amoy test network", rpc: "https://rpc-amoy.polygon.technology", hex: "0x13882", currency: "POL", explorer: "https://amoy.polygonscan.com" },
+  80002: { name: "Polygon Amoy test network", rpc: "https://polygon-amoy-bor-rpc.publicnode.com", hex: "0x13882", currency: "POL", explorer: "https://amoy.polygonscan.com" },
 };
 
 // Role identifiers exactly as the contract computes them (keccak256 of the name).
