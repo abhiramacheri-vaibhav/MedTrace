@@ -210,6 +210,7 @@ BATCH_ID=1 npm run iot:simulate
 | Block | 52478127 (2026-11-10) |
 | Admin (deployer) | `0xfd3E9AaCF697e02F9a186109838C9d2fD4A6dc78` |
 | Chain ID | 80002 |
+| Source | [Verified on Polygonscan](https://amoy.polygonscan.com/address/0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f#code) |
 
 The same details are in [`deployments/amoy.json`](deployments/amoy.json). To point the dApp at this contract, run `npm run sync-contract -- 0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f amoy` in `frontend/`.
 

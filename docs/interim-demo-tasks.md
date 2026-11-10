@@ -11,7 +11,7 @@ Tick your box in a PR when it's done. "Done" means merged to `main` and working 
 
 ### Neric: deployment + tests
 - [x] Test wallet created, test POL in it, Etherscan API key obtained
-- [ ] `npm run deploy:amoy` succeeds; contract verified on `amoy.polygonscan.com`
+- [x] `npm run deploy:amoy` succeeds; contract verified on `amoy.polygonscan.com`
 - [x] Contract address + explorer link added to README section 8
 - [x] `REPORT_GAS=true npx hardhat test` output pasted into the README as a table
 - [x] At least two new edge-case tests (e.g. recall after dispense is rejected, non-holder can't hand off)
