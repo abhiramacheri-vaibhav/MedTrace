@@ -64,7 +64,7 @@ medtrace/
 ├── deployments/
 │   └── amoy.json                 # written by deploy.js: address, tx hash, block
 ├── offchain/
-│   ├── ipfs/uploadToIpfs.js      # IPFS upload helper (draft)
+│   ├── ipfs/uploadToIpfs.js      # IPFS upload helper (Pinata)
 │   └── iot-simulator/simulateSensor.js  # temperature sensor simulator
 ├── frontend/                     # React dApp (planned for Interim Demo)
 ├── docs/
@@ -175,6 +175,21 @@ After `seed:local`, set `CONTRACT_ADDRESS` and `SENSOR_PRIVATE_KEY` in `.env`. U
 ```bash
 BATCH_ID=1 npm run iot:simulate
 ```
+
+The simulator prints a reading every 3 seconds. When a reading is out of range, it uploads the full reading log to IPFS and records the alert on-chain with that log's CID. The CID also shows up in the batch's documents. By default it stops after one alert. Optional settings: `MAX_ALERTS` (`0` runs until Ctrl+C), `INTERVAL_MS`, `SPIKE_CHANCE` (0 to 1, default 0.1). If `PINATA_JWT` is not set, or the upload fails, the alert is still recorded, just without a log CID.
+
+To run it on Amoy, set `RPC_URL` to the Amoy RPC and `CONTRACT_ADDRESS` to the deployed address. The sensor wallet must be granted `SENSOR_ROLE` by the admin first (`registerParticipant`) and needs a little test POL for gas.
+
+### Upload a document to IPFS
+
+Set `PINATA_JWT` in `.env` (Pinata dashboard → API Keys), then:
+
+```bash
+node offchain/ipfs/uploadToIpfs.js --test              # check the JWT works
+node offchain/ipfs/uploadToIpfs.js path/to/coa.pdf     # prints the CID and a gateway link
+```
+
+From code: `const { uploadFile, uploadJson, gatewayUrl } = require("./offchain/ipfs/uploadToIpfs")`.
 
 ## 8. Deployment to Polygon Amoy Testnet
 
