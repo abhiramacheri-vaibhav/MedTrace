@@ -54,11 +54,15 @@ medtrace/
 │   │   └── IMedTrace.sol         # public interface: types, events, function signatures
 │   └── access/
 │       └── MedTraceAccess.sol    # role-based access control (OpenZeppelin)
-├── test/
-│   └── MedTrace.test.js          # Hardhat/Chai tests (7 passing)
+├── test/                         # Hardhat/Chai tests (86 passing)
+│   ├── MedTrace.test.js          # core flow: register, hand-off, dispense, alerts, recall (7)
+│   ├── MedTrace.edgecases.test.js  # edge cases: custody, dispensing, expiry, recall, access (55)
+│   └── deploy.test.js            # deploy script: helpers, files it writes, verification fallbacks (24)
 ├── scripts/
 │   ├── deploy.js                 # deploy to localhost or Polygon Amoy
 │   └── seedDemo.js               # local demo data: roles + one batch end-to-end
+├── deployments/
+│   └── amoy.json                 # written by deploy.js: address, tx hash, block
 ├── offchain/
 │   ├── ipfs/uploadToIpfs.js      # IPFS upload helper (draft)
 │   └── iot-simulator/simulateSensor.js  # temperature sensor simulator
@@ -125,6 +129,35 @@ npx hardhat test
 REPORT_GAS=true npx hardhat test    # also print gas cost per function
 ```
 
+On Windows PowerShell, set the variable first (it stays set for that window):
+
+```powershell
+$env:REPORT_GAS = "true"; npx hardhat test
+```
+
+### Gas report
+
+Measured on the local Hardhat network with Solidity 0.8.24, optimizer on (200 runs) and `evmVersion` cancun, over the full test suite (86 tests). To reproduce, run `REPORT_GAS=true npx hardhat test` (PowerShell form above). Figures are gas units; `-` means the reporter saw only one value.
+
+| Function | Min | Max | Avg | Calls |
+|---|---:|---:|---:|---:|
+| `registerBatch` | 276,763 | 395,941 | 386,423 | 50 |
+| `certifyBatch` | 65,795 | 207,905 | 187,604 | 7 |
+| `recordTemperatureAlert` | 66,078 | 208,434 | 172,715 | 4 |
+| `attachDocument` | 155,381 | 157,785 | 156,343 | 5 |
+| `recallBatch` | 88,420 | 91,256 | 89,383 | 6 |
+| `registerParticipant` | 55,572 | 75,539 | 75,429 | 367 |
+| `transferCustody` | 72,577 | 75,088 | 73,326 | 34 |
+| `confirmReceipt` | - | - | 72,240 | 26 |
+| `markDispensed` | - | - | 66,819 | 5 |
+| `removeParticipant` | - | - | 28,890 | 3 |
+
+**Deployment:** `MedTrace` costs 2,712,475 gas, 4.5 % of the block gas limit (60,000,000 on the local Hardhat network).
+
+`registerBatch` is the most expensive call because it stores a new batch record with two strings (product name and lot number), plus a history entry that repeats the product name; with a Certificate of Analysis CID it also stores a document and a second history entry. The wide range for `certifyBatch` and `recordTemperatureAlert` comes from the same pattern: when a CID is passed, it is written into the history entry and into a separate document record. Every batch action appends a history entry, so even simple steps such as `confirmReceipt` and `markDispensed` cost around 66,000-73,000 gas. `verifyBatch` and `getHistory` are view functions, so a patient checking a batch sends no transaction and pays nothing.
+
+The `registerBatch` minimum and average move by a few gas units between runs: the tests derive expiry dates from the current block time, and calldata cost depends on the bytes of that timestamp. All other figures are stable.
+
 ### Run locally with demo data
 
 ```bash
@@ -145,20 +178,41 @@ BATCH_ID=1 npm run iot:simulate
 
 ## 8. Deployment to Polygon Amoy Testnet
 
-1. Add the Polygon Amoy network to MetaMask (Chain ID `80002`, RPC `https://rpc-amoy.polygon.technology`).
+1. Add the Polygon Amoy network to MetaMask (Chain ID `80002`, RPC `https://polygon-amoy-bor-rpc.publicnode.com`). The older `rpc-amoy.polygon.technology` address no longer resolves.
 2. Get free test POL from the [Polygon faucet](https://faucet.polygon.technology/).
-3. Put your deployer `PRIVATE_KEY` (use a test-only wallet) in `.env`.
+3. Fill in `.env` (copied from `.env.example`):
+   - `PRIVATE_KEY`: the deployer's private key, 64 hex characters. Use a test-only wallet, never one that holds real funds.
+   - `ETHERSCAN_API_KEY`: only needed for source verification. One key from etherscan.io works for Amoy through Etherscan API V2, so no separate Polygonscan key is needed.
+   - `AMOY_RPC_URL` can stay as it is.
 4. Deploy:
    ```bash
    npm run deploy:amoy
    ```
-5. (Optional) Verify the source on the block explorer:
+   The script:
+   - checks the wallet first and stops with a clear message if `PRIVATE_KEY` is missing or the wallet has no POL (it also warns if the balance looks too low for the estimated cost);
+   - deploys `MedTrace` with the deployer as admin, printing the transaction hash as soon as it is sent and the address and explorer links once it is mined;
+   - writes `deployments/amoy.json` (address, deployer, tx hash, block number, time, explorer link) and `frontend/src/contract.json` (address and ABI for the dApp);
+   - if `ETHERSCAN_API_KEY` is set, waits 5 confirmations and verifies the source on the block explorer, retrying if the explorer has not indexed the contract yet.
+
+   A failed verification does not undo the deployment. `deployments/amoy.json` holds only public data and should be committed.
+5. If verification was skipped or failed, run it by hand (the script prints this command with the real values filled in):
    ```bash
    npx hardhat verify --network amoy <CONTRACT_ADDRESS> <ADMIN_ADDRESS>
    ```
 6. Onboard the other team wallets with `registerParticipant` (through the dApp, Remix, or a Hardhat console).
 
-> The deployed contract address will be added here for the Interim Demo.
+### Deployed contract (Polygon Amoy)
+
+| | |
+|---|---|
+| Contract | [`0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f`](https://amoy.polygonscan.com/address/0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f) |
+| Deployment tx | [`0x28ea0971…0a30d3`](https://amoy.polygonscan.com/tx/0x28ea0971ec33ccd8dc777aebc2f3d047dfe2d077c7a7e8c847384572c90a30d3) |
+| Block | 52478127 (2026-11-10) |
+| Admin (deployer) | `0xfd3E9AaCF697e02F9a186109838C9d2fD4A6dc78` |
+| Chain ID | 80002 |
+| Source | [Verified on Polygonscan](https://amoy.polygonscan.com/address/0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f#code) |
+
+The same details are in [`deployments/amoy.json`](deployments/amoy.json). To point the dApp at this contract, run `npm run sync-contract -- 0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f amoy` in `frontend/`.
 
 ## 9. Roadmap
 
