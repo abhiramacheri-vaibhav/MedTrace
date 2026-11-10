@@ -13,8 +13,8 @@ Tick your box in a PR when it's done. "Done" means merged to `main` and working 
 - [ ] Test wallet created, test POL in it, Etherscan API key obtained
 - [ ] `npm run deploy:amoy` succeeds; contract verified on `amoy.polygonscan.com`
 - [ ] Contract address + explorer link added to README section 8
-- [ ] `REPORT_GAS=true npx hardhat test` output pasted into the README as a table
-- [ ] At least two new edge-case tests (e.g. recall after dispense is rejected, non-holder can't hand off)
+- [x] `REPORT_GAS=true npx hardhat test` output pasted into the README as a table
+- [x] At least two new edge-case tests (e.g. recall after dispense is rejected, non-holder can't hand off)
 
 ### Vaibhav: verify page + regulator module
 - [ ] `frontend/src/pages/Verify.jsx` built (the stub lists exactly what it needs to do)
