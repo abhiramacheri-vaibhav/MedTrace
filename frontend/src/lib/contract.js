@@ -24,8 +24,10 @@ export const ROLE_IDS = {
 export const ROLE_BY_ID = Object.fromEntries(Object.entries(ROLE_IDS).map(([k, v]) => [v.toLowerCase(), k]));
 
 // Plain-language labels and icons. The UI never shows the raw role constant.
-export const ROLE_LABELS = { admin: "Network operator", manufacturer: "Factory", distributor: "Distributor", pharmacy: "Pharmacy", regulator: "Regulator", sensor: "Temperature sensor" };
-export const ROLE_ICONS = { admin: "admin_panel_settings", manufacturer: "factory", distributor: "local_shipping", pharmacy: "local_pharmacy", regulator: "gavel", sensor: "sensors" };
+export const ROLE_LABELS = { admin: "Network operator", manufacturer: "Factory", distributor: "Distributor", pharmacy: "Pharmacy", regulator: "Regulator", sensor: "Temperature sensor", patient: "Patient" };
+export const ROLE_ICONS = { admin: "admin_panel_settings", manufacturer: "factory", distributor: "local_shipping", pharmacy: "local_pharmacy", regulator: "gavel", sensor: "sensors", patient: "favorite" };
+// One colour per role, used for tiles, stations and Pip.
+export const ROLE_COLORS = { admin: "#5B4CF5", manufacturer: "#FF8A3D", distributor: "#3DA5FF", pharmacy: "#22C08F", regulator: "#8B5CF6", sensor: "#FFB020", patient: "#FF6FA8" };
 export const ROLE_HOME = { admin: "/admin", manufacturer: "/factory", distributor: "/distributor", pharmacy: "/pharmacy", regulator: "/regulator", sensor: "/" };
 
 // enum BatchStatus { Created, InTransit, Received, Dispensed, Recalled }
@@ -142,3 +144,18 @@ export function friendlyError(err) {
   if (/could not coalesce|timeout|network/i.test(msg)) return "The blockchain didn't confirm in time.";
   return msg.length > 140 ? msg.slice(0, 137) + "…" : msg;
 }
+
+// A friendly icon + colour for a product, picked from its name (stable per name).
+const PRODUCT_PALETTE = ["#5B4CF5", "#3DA5FF", "#FF6FA8", "#22C08F", "#FF8A3D"];
+export function productLook(name = "") {
+  const n = name.toLowerCase();
+  const icon = /insulin|vaccin|inject/.test(n) ? "vaccines" : /inhal/.test(n) ? "air" : /syrup|liquid|suspension/.test(n) ? "medication_liquid" : /capsule|amox/.test(n) ? "pill" : "medication";
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return { icon, color: PRODUCT_PALETTE[h % PRODUCT_PALETTE.length] };
+}
+export const shortName = (s = "") => s.split(" ")[0] || s;
+// "5 Nov"
+export const dayOf = (unix) => { if (!unix) return ""; const d = new Date(unix * 1000); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+// "Mar 2028"
+export const monthYear = (unix) => { if (!unix) return ""; const d = new Date(unix * 1000); return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };

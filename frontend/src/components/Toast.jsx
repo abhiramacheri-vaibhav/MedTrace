@@ -1,8 +1,11 @@
-// Toasts: top right under the top bar. Success hides after 5 s; errors stay until dismissed.
+// Toasts, top right under the top bar. Pip reacts; success throws a little confetti and hides after
+// 5 s; errors stay until dismissed and offer Try again.
 import { createContext, useCallback, useContext, useState } from "react";
-import Icon from "./Icon.jsx";
+import Confetti from "./Confetti.jsx";
+import Pip from "./Pip.jsx";
 
 const ToastContext = createContext({ ok: () => {}, error: () => {} });
+const KIND = { success: { mood: "party", color: "#18B26B" }, error: { mood: "worried", color: "#F0483E" }, saving: { mood: "wait", color: "#FFB020" } };
 
 export function ToastProvider({ children }) {
   const [items, setItems] = useState([]);
@@ -20,17 +23,21 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={api}>
       {children}
       <div className="toasts" aria-live="polite">
-        {items.map((t) => (
-          <div key={t.id} className={`toast ${t.kind}`} role={t.kind === "error" ? "alert" : "status"}>
-            <div className="ico">{t.kind === "saving" ? <span className="spin dark lg" /> : <Icon name={t.kind === "error" ? "error" : "check_circle"} fill />}</div>
-            <div className="body">
-              <div className="t">{t.title}</div>
-              {t.body ? <div className="s">{t.body}</div> : null}
-              {t.action ? <button className="linkbtn act" style={{ color: "var(--accent)", fontWeight: 600 }} onClick={() => { t.action.onClick?.(); remove(t.id); }}>{t.action.label}</button> : null}
+        {items.map((t) => {
+          const k = KIND[t.kind] || KIND.success;
+          return (
+            <div key={t.id} className={`toast ${t.kind}`} role={t.kind === "error" ? "alert" : "status"}>
+              {t.kind === "success" ? <Confetti count={18} distance={130} seed={Math.round(t.id) % 97} /> : null}
+              <div className="t-pip"><Pip size={64} mood={k.mood} color={k.color} /></div>
+              <div className="t-body">
+                <span className="t">{t.title}</span>
+                {t.body ? <span className="s">{t.body}</span> : null}
+                {t.action ? <button className="btn white xs act" onClick={() => { remove(t.id); t.action.onClick?.(); }}>{t.action.label}</button> : null}
+              </div>
+              <button className="dismiss" onClick={() => remove(t.id)}>Dismiss</button>
             </div>
-            <button className="dismiss" onClick={() => remove(t.id)}>Dismiss</button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </ToastContext.Provider>
   );

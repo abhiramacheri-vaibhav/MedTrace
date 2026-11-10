@@ -24,10 +24,10 @@ export default function App() {
       <div className="shell">
         <TopBar />
         {!config ? (
-          <main className="page w1040">
-            <div className="card">
+          <main className="page narrow">
+            <div className="box form-stack">
               <h2>The app isn't connected to a contract yet</h2>
-              <p className="lead">Deploy MedTrace, then from the <span className="mono">frontend/</span> folder run <span className="mono">npm run sync-contract -- &lt;address&gt; &lt;localhost|amoy&gt;</span> and reload this page.</p>
+              <p className="sub">Deploy MedTrace, then from the <span className="mono">frontend/</span> folder run <span className="mono">npm run sync-contract -- &lt;address&gt; &lt;localhost|amoy&gt;</span> and reload this page.</p>
             </div>
           </main>
         ) : (
