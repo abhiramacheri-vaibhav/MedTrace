@@ -39,8 +39,8 @@ contract MedTrace is IMedTrace, MedTraceAccess {
     mapping(uint256 => HistoryEntry[]) private _history;
     mapping(uint256 => Document[]) private _documents;
 
-    // TODO (final phase): optional lookup by lot number so a patient can scan
-    // the lot printed on the box instead of the numeric batch ID.
+    // A printed lot can identify multiple shipments or manufacturers.
+    mapping(bytes32 => uint256[]) private _batchIdsByLot;
 
     // ---------------------------------------------------------------------
     // Modifiers (shared checks used by several functions)
@@ -88,6 +88,7 @@ contract MedTrace is IMedTrace, MedTraceAccess {
         require(minTempTenthsC < maxTempTenthsC, "MedTrace: bad temperature range");
 
         batchId = ++_batchCount;
+        _batchIdsByLot[keccak256(bytes(lotNumber))].push(batchId);
 
         // Write the batch record. The manufacturer is the first holder.
         Batch storage b = _batches[batchId];
@@ -163,8 +164,7 @@ contract MedTrace is IMedTrace, MedTraceAccess {
         Batch storage b = _batches[batchId];
         require(b.status == BatchStatus.Received, "MedTrace: batch not received yet");
         require(block.timestamp < b.expiryDate, "MedTrace: batch expired");
-        // TODO (interim demo): decide whether a temperature breach should block
-        // dispensing outright, or only warn the pharmacist in the UI.
+        require(!b.temperatureBreached, "MedTrace: temperature breached");
 
         b.status = BatchStatus.Dispensed;
 
@@ -265,9 +265,33 @@ contract MedTrace is IMedTrace, MedTraceAccess {
     }
 
     /// @inheritdoc IMedTrace
-    /// @dev TODO (final phase): add a paginated version if histories get long.
+    function getBatchIdsByLot(string calldata lotNumber) external view returns (uint256[] memory) {
+        return _batchIdsByLot[keccak256(bytes(lotNumber))];
+    }
+
+    /// @inheritdoc IMedTrace
     function getHistory(uint256 batchId) external view batchExists(batchId) returns (HistoryEntry[] memory) {
         return _history[batchId];
+    }
+
+    /// @inheritdoc IMedTrace
+    function getHistoryPage(uint256 batchId, uint256 offset, uint256 limit)
+        external
+        view
+        batchExists(batchId)
+        returns (HistoryEntry[] memory entries, uint256 total)
+    {
+        HistoryEntry[] storage history = _history[batchId];
+        total = history.length;
+        if (offset >= total) return (new HistoryEntry[](0), total);
+
+        // Clamp before adding so even a uint256 maximum limit cannot overflow.
+        uint256 count = total - offset;
+        if (limit < count) count = limit;
+        entries = new HistoryEntry[](count);
+        for (uint256 i = 0; i < count; ++i) {
+            entries[i] = history[offset + i];
+        }
     }
 
     /// @inheritdoc IMedTrace
