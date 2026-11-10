@@ -16,6 +16,8 @@ React (Vite) + Ethers v6 + a browser wallet (MetaMask). Each supply-chain role g
 | `/admin` | Network operator | Onboard participants | `registerParticipant` |
 | `/verify` | Patient (no wallet) | Check a batch: safe or not, plus its journey | `verifyBatch`, `getBatch`, `getHistory` |
 
+Look and feel follow the team's style sheet: Atkinson Hyperlegible type, one accent colour, status colours only for status, 8/12/16 px radii, ease-out motion under 450 ms, `prefers-reduced-motion` honoured.
+
 The **custody timeline** on every batch card shows each holder as a stop and the batch as a token that moves when a hand-off is accepted. A hand-off that is sent but not yet accepted shows the token between two stops, labelled "waiting to accept".
 
 ## Run it locally
@@ -39,6 +41,10 @@ npm run dev
 Then in MetaMask add the local network (RPC `http://127.0.0.1:8545`, chain id `31337`) and import the Hardhat test accounts you want to act as. `seedDemo.js` prints which account has which role.
 
 For the Polygon Amoy deployment: `npm run sync-contract -- <amoy address> amoy`.
+
+## Local dev mode (no wallet needed)
+
+On the local Hardhat network only, open a page with `?as=<address>` to act as one of the node's unlocked accounts, for example `/factory?as=0x7099...79C8` (the factory from `seedDemo.js`). The app signs with that account directly, so you can click through every flow without MetaMask. Ignored on any public network.
 
 ## Recording mode
 

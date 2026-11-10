@@ -7,9 +7,9 @@ import { BrowserProvider, Contract, JsonRpcProvider, ZeroHash, id as keccakId } 
 const modules = import.meta.glob("../contract.json", { eager: true });
 export const CONFIG = modules["../contract.json"]?.default ?? null;
 
-export const RPC_FALLBACK = {
-  31337: "http://127.0.0.1:8545",
-  80002: "https://rpc-amoy.polygon.technology",
+export const NETWORKS = {
+  31337: { name: "local Hardhat network", rpc: "http://127.0.0.1:8545", hex: "0x7a69", currency: "ETH" },
+  80002: { name: "Polygon Amoy test network", rpc: "https://rpc-amoy.polygon.technology", hex: "0x13882", currency: "POL", explorer: "https://amoy.polygonscan.com" },
 };
 
 // Role identifiers exactly as the contract computes them (keccak256 of the name).
@@ -21,73 +21,83 @@ export const ROLE_IDS = {
   regulator: keccakId("REGULATOR_ROLE"),
   sensor: keccakId("SENSOR_ROLE"),
 };
+export const ROLE_BY_ID = Object.fromEntries(Object.entries(ROLE_IDS).map(([k, v]) => [v.toLowerCase(), k]));
 
-// Plain-language labels. The UI never shows the raw role constant.
-export const ROLE_LABELS = {
-  admin: "Network operator",
-  manufacturer: "Factory",
-  distributor: "Distributor",
-  pharmacy: "Pharmacy",
-  regulator: "Regulator",
-  sensor: "Temperature sensor",
-};
-
-// Where each role lands after connecting.
-export const ROLE_HOME = {
-  admin: "/admin",
-  manufacturer: "/factory",
-  distributor: "/distributor",
-  pharmacy: "/pharmacy",
-  regulator: "/regulator",
-  sensor: "/",
-};
+// Plain-language labels and icons. The UI never shows the raw role constant.
+export const ROLE_LABELS = { admin: "Network operator", manufacturer: "Factory", distributor: "Distributor", pharmacy: "Pharmacy", regulator: "Regulator", sensor: "Temperature sensor" };
+export const ROLE_ICONS = { admin: "admin_panel_settings", manufacturer: "factory", distributor: "local_shipping", pharmacy: "local_pharmacy", regulator: "gavel", sensor: "sensors" };
+export const ROLE_HOME = { admin: "/admin", manufacturer: "/factory", distributor: "/distributor", pharmacy: "/pharmacy", regulator: "/regulator", sensor: "/" };
 
 // enum BatchStatus { Created, InTransit, Received, Dispensed, Recalled }
 export const STATUS = ["Created", "In transit", "Received", "Dispensed", "Recalled"];
-export const STATUS_TONE = ["neutral", "amber", "green", "neutral", "red"];
+// enum ActionType, same order as the contract.
+export const ACTION = { Registered: 0, CustodyTransferred: 1, ReceiptConfirmed: 2, Dispensed: 3, DocumentAttached: 4, TemperatureAlert: 5, Certified: 6, Recalled: 7 };
+export const ACTION_LABELS = ["Registered at the factory", "Handed off", "Delivery accepted", "Dispensed to patient", "Document attached", "Temperature alert", "Certified by the regulator", "Recalled by the regulator"];
+export const DOC_LABELS = ["Certificate of analysis", "Temperature log", "Shipping record", "Regulator certificate", "Other document"];
 
-// enum ActionType in the same order as the contract.
-export const ACTION_LABELS = [
-  "Registered at the factory",
-  "Handed off",
-  "Delivery accepted",
-  "Dispensed to patient",
-  "Document attached",
-  "Temperature alert",
-  "Certified by the regulator",
-  "Recalled by the regulator",
-];
-
-// enum DocType in the same order as the contract.
-export const DOC_LABELS = [
-  "Certificate of analysis",
-  "Temperature log",
-  "Shipping record",
-  "Regulator certificate",
-  "Other document",
-];
+// Timeline state derived from a batch. "alert" wins over received/created so the breach is visible.
+export function timelineState(b) {
+  if (b.status === 4) return "recalled";
+  if (b.status === 3) return "dispensed";
+  if (b.temperatureBreached) return "alert";
+  return ["created", "transit", "received"][b.status] || "received";
+}
+export const STATE_CHIP = {
+  created: { text: "Created", icon: "add_circle", tone: "neutral" },
+  transit: { text: "In transit", icon: "hourglass_top", tone: "wait" },
+  received: { text: "Received", icon: "check_circle", tone: "safe" },
+  dispensed: { text: "Dispensed", icon: "lock", tone: "safe" },
+  recalled: { text: "Recalled", icon: "block", tone: "danger" },
+  alert: { text: "Temperature alert", icon: "thermostat", tone: "danger" },
+};
 
 export function readProvider() {
   if (!CONFIG) return null;
   if (window.ethereum) return new BrowserProvider(window.ethereum);
-  return new JsonRpcProvider(RPC_FALLBACK[CONFIG.chainId] ?? RPC_FALLBACK[31337]);
+  return new JsonRpcProvider(NETWORKS[CONFIG.chainId]?.rpc ?? NETWORKS[31337].rpc);
 }
-
 export function readContract() {
   const p = readProvider();
   return p ? new Contract(CONFIG.address, CONFIG.abi, p) : null;
 }
-
 export function writeContract(signer) {
   return new Contract(CONFIG.address, CONFIG.abi, signer);
 }
 
-// Which single role does this account have? Checks the five roles in order.
+// Which single role does this account have? Checks the roles in order.
 export async function detectRole(contract, account) {
   for (const key of ["admin", "manufacturer", "distributor", "pharmacy", "regulator", "sensor"]) {
     if (await contract.hasRole(ROLE_IDS[key], account)) return key;
   }
   return null;
+}
+
+// Everyone the operator has onboarded: { addressLower: { address, role, name } }.
+// Read from ParticipantRegistered events; falls back to an empty roster if the RPC refuses log queries.
+export async function loadParticipants(contract) {
+  const roster = {};
+  try {
+    const logs = await contract.queryFilter(contract.filters.ParticipantRegistered(), 0, "latest");
+    for (const l of logs) {
+      const role = ROLE_BY_ID[l.args.role.toLowerCase()];
+      roster[l.args.account.toLowerCase()] = { address: l.args.account, role, name: l.args.name };
+    }
+    const removed = await contract.queryFilter(contract.filters.ParticipantRemoved(), 0, "latest");
+    for (const l of removed) delete roster[l.args.account.toLowerCase()];
+  } catch (e) {
+    console.warn("Could not read the participant list from events:", e?.shortMessage || e?.message);
+  }
+  return roster;
+}
+
+// Temperature readings for a batch, from TempAlert events (the reading isn't stored in history).
+export async function loadTempAlerts(contract, batchId) {
+  try {
+    const logs = await contract.queryFilter(contract.filters.TempAlert(batchId), 0, "latest");
+    return logs.map((l) => ({ readingTenthsC: Number(l.args.readingTenthsC), logCid: l.args.logCid }));
+  } catch {
+    return [];
+  }
 }
 
 // Loads every batch (ids start at 1). Fine for a demo-sized ledger.
@@ -100,54 +110,35 @@ export async function loadAllBatches(contract) {
 
 export function normalizeBatch(b) {
   return {
-    id: Number(b.id),
-    productName: b.productName,
-    lotNumber: b.lotNumber,
-    manufacturer: b.manufacturer,
-    currentHolder: b.currentHolder,
-    pendingHolder: b.pendingHolder,
-    manufactureDate: Number(b.manufactureDate),
-    expiryDate: Number(b.expiryDate),
-    minTempTenthsC: Number(b.minTempTenthsC),
-    maxTempTenthsC: Number(b.maxTempTenthsC),
-    status: Number(b.status),
-    certified: Boolean(b.certified),
-    temperatureBreached: Boolean(b.temperatureBreached),
+    id: Number(b.id), productName: b.productName, lotNumber: b.lotNumber,
+    manufacturer: b.manufacturer, currentHolder: b.currentHolder, pendingHolder: b.pendingHolder,
+    manufactureDate: Number(b.manufactureDate), expiryDate: Number(b.expiryDate),
+    minTempTenthsC: Number(b.minTempTenthsC), maxTempTenthsC: Number(b.maxTempTenthsC),
+    status: Number(b.status), certified: Boolean(b.certified), temperatureBreached: Boolean(b.temperatureBreached),
   };
 }
-
 export function normalizeHistory(entries) {
-  return entries.map((e) => ({
-    action: Number(e.action),
-    actor: e.actor,
-    status: Number(e.status),
-    timestamp: Number(e.timestamp),
-    details: e.details,
-  }));
+  return entries.map((e) => ({ action: Number(e.action), actor: e.actor, status: Number(e.status), timestamp: Number(e.timestamp), details: e.details }));
 }
 
-// Resolves display names for a set of addresses via participantName().
-export async function nameMap(contract, addresses) {
-  const unique = [...new Set(addresses.filter((a) => a && !/^0x0{40}$/.test(a)))];
-  const names = await Promise.all(unique.map((a) => contract.participantName(a).catch(() => "")));
-  const map = {};
-  unique.forEach((a, i) => (map[a.toLowerCase()] = names[i] || shortAddr(a)));
-  return map;
-}
-
-export const isZero = (a) => !a || /^0x0{40}$/.test(a);
+export const isZero = (a) => !a || /^0x0{40}$/i.test(a);
 export const shortAddr = (a) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "");
 export const tempC = (tenths) => `${(tenths / 10).toFixed(1)} °C`;
-export const dateOf = (unix) => (unix ? new Date(unix * 1000).toLocaleDateString() : "");
-export const dateTimeOf = (unix) => (unix ? new Date(unix * 1000).toLocaleString() : "");
+export const rangeC = (lo, hi) => `${(lo / 10).toFixed(1)}–${(hi / 10).toFixed(1)} °C`;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// "5 Nov, 14:02" style, as in the design.
+export const when = (unix) => { if (!unix) return ""; const d = new Date(unix * 1000); return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+// "31 Mar 2028"
+export const dateOf = (unix) => { if (!unix) return ""; const d = new Date(unix * 1000); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
 
 // Turns a revert into a sentence a person can act on.
 export function friendlyError(err) {
   const msg = err?.shortMessage || err?.reason || err?.message || String(err);
-  if (/user rejected|ACTION_REJECTED/i.test(msg)) return "You cancelled the request in your wallet.";
+  if (/user rejected|ACTION_REJECTED|rejected the request/i.test(msg)) return "Your wallet app declined the request.";
   const m = msg.match(/MedTrace: ([^"']+)/);
-  if (m) return `The blockchain refused this: ${m[1]}.`;
-  if (/AccessControl/i.test(msg)) return "This account doesn't have permission for that action.";
-  if (/insufficient funds/i.test(msg)) return "This account has no test POL to pay for the transaction.";
-  return msg.length > 160 ? msg.slice(0, 157) + "…" : msg;
+  if (m) return `The record refused it: ${m[1]}.`;
+  if (/AccessControl/i.test(msg)) return "This account isn't allowed to do that.";
+  if (/insufficient funds/i.test(msg)) return "This account has no test funds to pay for the transaction.";
+  if (/could not coalesce|timeout|network/i.test(msg)) return "The blockchain didn't confirm in time.";
+  return msg.length > 140 ? msg.slice(0, 137) + "…" : msg;
 }

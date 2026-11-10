@@ -1,30 +1,39 @@
 // Shared hook: load all batches once, re-load on demand after a transaction.
 import { useCallback, useEffect, useState } from "react";
-import { loadAllBatches, nameMap } from "../lib/contract.js";
+import { loadAllBatches } from "../lib/contract.js";
 
 export function useBatches(reader) {
   const [batches, setBatches] = useState([]);
-  const [names, setNames] = useState({});
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
-
   const reload = useCallback(() => setTick((t) => t + 1), []);
 
   useEffect(() => {
     if (!reader) return;
     let live = true;
     setLoading(true);
-    (async () => {
-      try {
-        const all = await loadAllBatches(reader);
-        const nm = await nameMap(reader, all.flatMap((b) => [b.manufacturer, b.currentHolder, b.pendingHolder]));
-        if (live) { setBatches(all); setNames(nm); }
-      } finally {
-        if (live) setLoading(false);
-      }
-    })();
+    loadAllBatches(reader)
+      .then((all) => live && setBatches(all))
+      .catch((e) => console.warn("Could not load batches:", e?.shortMessage || e?.message))
+      .finally(() => live && setLoading(false));
     return () => { live = false; };
   }, [reader, tick]);
 
-  return { batches, names, loading, reload, tick };
+  return { batches, loading, reload, tick };
+}
+
+// History + temperature readings for one batch; re-fetches when the batch changes.
+import { loadTempAlerts, normalizeHistory } from "../lib/contract.js";
+export function useBatchHistory(reader, batch, refreshKey) {
+  const [history, setHistory] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  useEffect(() => {
+    if (!reader || !batch) return;
+    let live = true;
+    Promise.all([reader.getHistory(batch.id), batch.temperatureBreached ? loadTempAlerts(reader, batch.id) : []])
+      .then(([h, a]) => { if (live) { setHistory(normalizeHistory(h)); setAlerts(a); } })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [reader, batch?.id, batch?.status, batch?.currentHolder, batch?.pendingHolder, batch?.temperatureBreached, batch?.certified, refreshKey]);
+  return { history, alerts };
 }

@@ -13,7 +13,7 @@ import Verify from "./pages/Verify.jsx";
 // Pages that need a specific role bounce back to Connect if you don't have it.
 function Guard({ role, children }) {
   const w = useWallet();
-  if (!w.account || w.role !== role) return <Navigate to="/" replace />;
+  if (!w.account || w.role !== role || w.wrongNetwork) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -24,10 +24,10 @@ export default function App() {
       <div className="shell">
         <TopBar />
         {!config ? (
-          <main className="page">
-            <div className="notice warn">
-              <b>The app isn't connected to a contract yet.</b> Deploy MedTrace, then from the <code>frontend/</code> folder run
-              <code> npm run sync-contract -- &lt;address&gt; &lt;localhost|amoy&gt;</code> and reload.
+          <main className="page w1040">
+            <div className="card">
+              <h2>The app isn't connected to a contract yet</h2>
+              <p className="lead">Deploy MedTrace, then from the <span className="mono">frontend/</span> folder run <span className="mono">npm run sync-contract -- &lt;address&gt; &lt;localhost|amoy&gt;</span> and reload this page.</p>
             </div>
           </main>
         ) : (
