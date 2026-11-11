@@ -40,7 +40,7 @@ npm run dev
 
 Then in MetaMask add the local network (RPC `http://127.0.0.1:8545`, chain id `31337`) and import the Hardhat test accounts you want to act as. `seedDemo.js` prints which account has which role.
 
-For the Polygon Amoy deployment: `npm run sync-contract -- <amoy address> amoy`.
+For the Polygon Amoy deployment: `npm run sync-contract -- <amoy address> amoy`. This also records the block the contract was deployed in (read from `deployments/amoy.json`, or pass it as a third argument). The public Amoy endpoint only searches 10,000 blocks of events at a time, so the app reads the participant list and temperature alerts in chunks from that block onward.
 
 ## Local dev mode (no wallet needed)
 

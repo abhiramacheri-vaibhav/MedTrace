@@ -30,7 +30,7 @@ export function useBatchHistory(reader, batch, refreshKey) {
   useEffect(() => {
     if (!reader || !batch) return;
     let live = true;
-    Promise.all([reader.getHistory(batch.id), batch.temperatureBreached ? loadTempAlerts(reader, batch.id) : []])
+    Promise.all([reader.getHistory(batch.id), batch.temperatureBreached ? loadTempAlerts(batch.id) : []])
       .then(([h, a]) => { if (live) { setHistory(normalizeHistory(h)); setAlerts(a); } })
       .catch(() => {});
     return () => { live = false; };

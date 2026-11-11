@@ -28,7 +28,7 @@ export function WalletProvider({ children }) {
   const wrongNetwork = Boolean(CONFIG && chainId && CONFIG.chainId && chainId !== CONFIG.chainId);
 
   const refreshParticipants = useCallback(async () => {
-    if (reader) setParticipants(await loadParticipants(reader));
+    if (reader) setParticipants(await loadParticipants());
   }, [reader]);
   useEffect(() => { refreshParticipants(); }, [refreshParticipants]);
 
