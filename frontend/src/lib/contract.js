@@ -74,18 +74,77 @@ export async function detectRole(contract, account) {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Event reading
+// Public Amoy endpoints refuse event searches wider than 10,000 blocks, so events
+// are read in chunks, starting at the block the contract was deployed in
+// (CONFIG.deployBlock, written by sync-contract). Logs always go through the
+// network's own endpoint, not the wallet's, so the limit is a known one.
+// Results are cached per event: later calls only read the blocks added since.
+// ---------------------------------------------------------------------------
+const LOG_CHUNK = 9000;
+const LOG_PARALLEL = 4;
+let logContract = null;
+const logCache = new Map(); // event name -> { next, logs, pending }
+
+function eventReader() {
+  if (!logContract) {
+    const rpc = NETWORKS[CONFIG.chainId]?.rpc ?? NETWORKS[31337].rpc;
+    const provider = new JsonRpcProvider(rpc, CONFIG.chainId ?? undefined, CONFIG.chainId ? { staticNetwork: true } : undefined);
+    logContract = new Contract(CONFIG.address, CONFIG.abi, provider);
+  }
+  return logContract;
+}
+
+async function scanNewBlocks(eventName, entry) {
+  const contract = eventReader();
+  const head = await contract.runner.getBlockNumber();
+  if (head < entry.next - 1) { // the chain was reset (local node restarted)
+    entry.next = CONFIG.deployBlock ?? 0;
+    entry.logs = [];
+  }
+  const ranges = [];
+  for (let from = entry.next; from <= head; from += LOG_CHUNK) ranges.push([from, Math.min(from + LOG_CHUNK - 1, head)]);
+  const results = new Array(ranges.length);
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < ranges.length) {
+      const k = cursor++;
+      results[k] = await contract.queryFilter(contract.filters[eventName](), ...ranges[k]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(LOG_PARALLEL, ranges.length) }, worker));
+  entry.logs = entry.logs.concat(results.flat());
+  entry.next = head + 1;
+  return entry.logs;
+}
+
+/** Every `eventName` log since deployment, oldest first. Throws if the endpoint fails. */
+export function readEvents(eventName) {
+  let entry = logCache.get(eventName);
+  if (!entry) {
+    entry = { next: CONFIG.deployBlock ?? 0, logs: [], pending: Promise.resolve() };
+    logCache.set(eventName, entry);
+  }
+  // Chain calls for the same event so two pages loading at once don't scan twice.
+  const run = entry.pending.catch(() => {}).then(() => scanNewBlocks(eventName, entry));
+  entry.pending = run;
+  return run;
+}
+
+const byChainOrder = (a, b) => a.blockNumber - b.blockNumber || a.index - b.index;
+
 // Everyone the operator has onboarded: { addressLower: { address, role, name } }.
-// Read from ParticipantRegistered events; falls back to an empty roster if the RPC refuses log queries.
-export async function loadParticipants(contract) {
+// Read from ParticipantRegistered/Removed events; falls back to an empty roster if the endpoint fails.
+export async function loadParticipants() {
   const roster = {};
   try {
-    const logs = await contract.queryFilter(contract.filters.ParticipantRegistered(), 0, "latest");
-    for (const l of logs) {
-      const role = ROLE_BY_ID[l.args.role.toLowerCase()];
-      roster[l.args.account.toLowerCase()] = { address: l.args.account, role, name: l.args.name };
+    const [added, removed] = await Promise.all([readEvents("ParticipantRegistered"), readEvents("ParticipantRemoved")]);
+    for (const l of [...added, ...removed].sort(byChainOrder)) {
+      const key = l.args.account.toLowerCase();
+      if (l.fragment.name === "ParticipantRemoved") delete roster[key];
+      else roster[key] = { address: l.args.account, role: ROLE_BY_ID[l.args.role.toLowerCase()], name: l.args.name };
     }
-    const removed = await contract.queryFilter(contract.filters.ParticipantRemoved(), 0, "latest");
-    for (const l of removed) delete roster[l.args.account.toLowerCase()];
   } catch (e) {
     console.warn("Could not read the participant list from events:", e?.shortMessage || e?.message);
   }
@@ -93,11 +152,14 @@ export async function loadParticipants(contract) {
 }
 
 // Temperature readings for a batch, from TempAlert events (the reading isn't stored in history).
-export async function loadTempAlerts(contract, batchId) {
+export async function loadTempAlerts(batchId) {
   try {
-    const logs = await contract.queryFilter(contract.filters.TempAlert(batchId), 0, "latest");
-    return logs.map((l) => ({ readingTenthsC: Number(l.args.readingTenthsC), logCid: l.args.logCid }));
-  } catch {
+    const logs = await readEvents("TempAlert");
+    return logs
+      .filter((l) => Number(l.args.batchId) === Number(batchId))
+      .map((l) => ({ readingTenthsC: Number(l.args.readingTenthsC), logCid: l.args.logCid }));
+  } catch (e) {
+    console.warn("Could not read temperature alerts from events:", e?.shortMessage || e?.message);
     return [];
   }
 }
