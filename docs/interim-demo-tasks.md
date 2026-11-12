@@ -30,7 +30,7 @@ Tick your box in a PR when it's done. "Done" means merged to `main` and working 
 
 ### Rohan: off-chain
 - [x] `offchain/ipfs/uploadToIpfs.js` uploads a file to Pinata and returns a real CID
-- [ ] `simulateSensor.js` runs against the deployed contract and writes one real temperature alert (code done and tested locally; waiting on `SENSOR_ROLE` for the sensor wallet on Amoy)
+- [x] `simulateSensor.js` runs against the deployed contract and writes one real temperature alert ([alert tx](https://amoy.polygonscan.com/tx/0x2113e64351badce22a3e7fff8b8eb5c0cfb173d594fbdcd8bc13457329c22f62) on batch #1, the "sensor test" batch)
 - [x] If IPFS isn't ready by Tuesday: say so in the group, and we label documents "sample" in the demo (not needed: IPFS works)
 
 ### Shrey: web app + recording
