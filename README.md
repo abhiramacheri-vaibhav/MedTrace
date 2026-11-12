@@ -231,6 +231,12 @@ The same details are in [`deployments/amoy.json`](deployments/amoy.json). To poi
 
 This deployment includes lot-number lookup, the temperature-breach dispense rule and history pagination. It replaces the first deployment at `0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f`, which predates those changes and should no longer be used. Roles and batches do not carry over: every participant has to be registered again on the new contract.
 
+To onboard the demo participants (Acme Pharma, FastMed Logistics, Tempe Pharmacy, Drug Regulator) and give each one 0.15 test POL for gas, the admin runs this with the deployer's `PRIVATE_KEY` in `.env`. The wallets are listed in [`deployments/amoy-demo-participants.json`](deployments/amoy-demo-participants.json). Re-running it is safe, because finished steps are skipped.
+
+```bash
+npm run demo:onboard
+```
+
 ## 9. Roadmap
 
 | Milestone | Date | Scope |
