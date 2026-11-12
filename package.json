@@ -10,6 +10,7 @@
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
     "deploy:amoy": "hardhat run scripts/deploy.js --network amoy",
     "seed:local": "hardhat run scripts/seedDemo.js --network localhost",
+    "admin:grant": "hardhat run scripts/grantAdmin.js --network amoy",
     "iot:simulate": "node offchain/iot-simulator/simulateSensor.js"
   },
   "license": "MIT",

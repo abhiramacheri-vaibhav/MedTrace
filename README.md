@@ -231,6 +231,12 @@ The same details are in [`deployments/amoy.json`](deployments/amoy.json). To poi
 
 This deployment includes lot-number lookup, the temperature-breach dispense rule and history pagination. It replaces the first deployment at `0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f`, which predates those changes and should no longer be used. Roles and batches do not carry over: every participant has to be registered again on the new contract.
 
+To give a second teammate admin rights (so they can onboard participants too), the current admin runs this with their own `PRIVATE_KEY` in `.env`. The current admin keeps the role.
+
+```bash
+NEW_ADMIN=0xTheirWalletAddress npm run admin:grant
+```
+
 ## 9. Roadmap
 
 | Milestone | Date | Scope |
