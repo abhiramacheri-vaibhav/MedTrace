@@ -1,0 +1,27 @@
+{
+  "network": "amoy",
+  "contract": "0x2749c1613F6dfF8283434885b985d287AC5FA2B8",
+  "fundEachPol": "0.15",
+  "participants": [
+    {
+      "name": "Acme Pharma",
+      "role": "MANUFACTURER_ROLE",
+      "address": "0xCB3F1D6805e0e0A55BB9Ae03c29F3b5CF474Dc73"
+    },
+    {
+      "name": "FastMed Logistics",
+      "role": "DISTRIBUTOR_ROLE",
+      "address": "0x1f4dF093cfDa920a2bC52D156Bc60194eCf63156"
+    },
+    {
+      "name": "Tempe Pharmacy",
+      "role": "PHARMACY_ROLE",
+      "address": "0x977a8AfBE923C2d8AA236EB2286FC307F1500125"
+    },
+    {
+      "name": "Drug Regulator",
+      "role": "REGULATOR_ROLE",
+      "address": "0xF7950C0b19B8DB4d57559df6eEf5893402ec98C2"
+    }
+  ]
+}
