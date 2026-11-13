@@ -221,3 +221,20 @@ export const shortName = (s = "") => s.split(" ")[0] || s;
 export const dayOf = (unix) => { if (!unix) return ""; const d = new Date(unix * 1000); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
 // "Mar 2028"
 export const monthYear = (unix) => { if (!unix) return ""; const d = new Date(unix * 1000); return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
+
+// ---------------------------------------------------------------------------
+// IPFS documents. Only CIDs are stored on-chain; files open through a public gateway.
+// ---------------------------------------------------------------------------
+export const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
+// CIDv0 ("Qm" + 44 base58 chars) or CIDv1 in base32 ("b" + lowercase letters/digits 2-7).
+export const isCid = (s) => typeof s === "string" && (/^Qm[1-9A-HJ-NP-Za-km-z]{44}$/.test(s.trim()) || /^b[a-z2-7]{50,}$/.test(s.trim()));
+export const ipfsUrl = (cid) => `${IPFS_GATEWAY}${cid.trim()}`;
+
+// Documents linked to a batch: [{ docType, label, cid, uploadedBy, timestamp }].
+export async function loadDocuments(contract, batchId) {
+  const docs = await contract.getDocuments(batchId);
+  return docs.map((d) => ({
+    docType: Number(d.docType), label: DOC_LABELS[Number(d.docType)] || "Document",
+    cid: d.cid, uploadedBy: d.uploadedBy, timestamp: Number(d.timestamp),
+  }));
+}

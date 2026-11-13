@@ -2,6 +2,7 @@
 // Owner: Vaibhav Abhiramacheri.
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Confetti from "../components/Confetti.jsx";
 import Icon from "../components/Icon.jsx";
 import Pip from "../components/Pip.jsx";
@@ -26,7 +27,8 @@ const TIPS = [
 
 export default function Verify() {
   const { reader, who } = useWallet();
-  const [q, setQ] = useState("");
+  const [params] = useSearchParams();
+  const [q, setQ] = useState(params.get("lot") || "");
   const [result, setResult] = useState(null);
   const [batch, setBatch] = useState(null);
   const [history, setHistory] = useState([]);
@@ -67,8 +69,8 @@ export default function Verify() {
     [reader]
   );
 
-  const checkBatch = async () => {
-    const lotNumber = q.trim();
+  const checkBatch = async (lotArg) => {
+    const lotNumber = (typeof lotArg === "string" ? lotArg : q).trim();
 
     if (!reader || !lotNumber) return;
 
@@ -97,6 +99,16 @@ export default function Verify() {
       setLoading(false);
     }
   };
+
+  // Opened from a batch card ("/verify?lot=..."): check that lot straight away.
+  const lotParam = params.get("lot");
+  useEffect(() => {
+    if (reader && lotParam) {
+      setQ(lotParam);
+      checkBatch(lotParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reader, lotParam]);
 
   useEffect(() => {
     if (!reader || !batch) return;
