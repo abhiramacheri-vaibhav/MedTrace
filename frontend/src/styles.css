@@ -213,6 +213,11 @@ h1, h2, h3 { font-family: var(--display); font-weight: 700; line-height: 1.1; }
 .tbar .mark { position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 50%; background: var(--danger); border: 2.5px solid var(--ink); transform: translate(-50%, -50%); }
 .tread { padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 800; white-space: nowrap; background: var(--safe-soft); color: var(--safe-ink); }
 .tread.bad { background: var(--danger-soft); color: var(--danger-ink); }
+a.tread { display: inline-flex; align-items: center; gap: 3px; text-decoration: none; }
+a.tread .ic { font-size: 14px; }
+.doclink { display: inline-flex; align-items: center; gap: 3px; color: var(--primary); font-weight: 800; text-decoration: none; }
+.doclink:hover { text-decoration: underline; }
+.doclink .ic { font-size: 14px; }
 .bc-actions { display: flex; gap: 10px; }
 .bc-actions > * { flex: 1; }
 .bc-details { background: none; border: 0; border-top: 2px solid var(--sand-soft); padding: 10px 0 0; font: inherit; font-size: 14px; font-weight: 800; color: var(--ink2); display: flex; align-items: center; gap: 4px; cursor: pointer; text-align: left; }

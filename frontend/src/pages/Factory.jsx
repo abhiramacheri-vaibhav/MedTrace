@@ -9,7 +9,7 @@ import { LiveTrack } from "../components/Track.jsx";
 import TxButton from "../components/TxButton.jsx";
 import { useWallet } from "../lib/wallet.jsx";
 import { useBatches } from "./useBatches.js";
-import { ROLE_COLORS, shortAddr, shortName } from "../lib/contract.js";
+import { ROLE_COLORS, isCid, shortAddr, shortName } from "../lib/contract.js";
 
 export default function Factory() {
   const w = useWallet();
@@ -80,13 +80,16 @@ const fmt = (v) => (Number.isInteger(v) ? `${v}.0` : `${v}`);
 
 function RegisterForm({ onDone }) {
   const w = useWallet();
-  const blank = { productName: "", lotNumber: "", expiry: "", lo: 2, hi: 8 };
+  const blank = { productName: "", lotNumber: "", expiry: "", lo: 2, hi: 8, coa: "" };
   const [f, setF] = useState(blank);
   const [touched, setTouched] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const tempErr = !(f.lo < f.hi);
   const expiryErr = f.expiry && new Date(f.expiry).getTime() <= Date.now();
-  const ready = f.productName.trim() && f.lotNumber.trim() && f.expiry && !tempErr && !expiryErr;
+  // The certificate is optional. Accept a bare CID or a gateway link ("…/ipfs/<cid>").
+  const coaCid = f.coa.trim().replace(/^.*\/ipfs\//, "").replace(/[/?#].*$/, "");
+  const coaErr = coaCid !== "" && !isCid(coaCid);
+  const ready = f.productName.trim() && f.lotNumber.trim() && f.expiry && !tempErr && !expiryErr && !coaErr;
   const at = (v) => ((v - MIN_T) / (MAX_T - MIN_T)) * 100;
 
   return (
@@ -113,9 +116,10 @@ function RegisterForm({ onDone }) {
         </div>
         {tempErr ? <span className="ferr"><Icon name="error" />Hot is lower than cold. Swap them.</span> : null}
       </div>
-      <div className="dropzone"><div className="ficon"><Icon name="upload_file" /></div><div style={{ flex: 1 }}><b>Add a document</b><span className="s">Coming soon. Leave it for now.</span></div></div>
+      <div className={`frow ${coaErr ? "err" : ""}`}><div className="ficon" style={{ background: "#3DA5FF" }}><Icon name="description" /></div><label>Certificate of analysis <span className="ink2" style={{ fontWeight: 600 }}>(optional)</span><input value={f.coa} onChange={set("coa")} placeholder="IPFS link or CID, e.g. bafkrei…" /></label></div>
+      {coaErr ? <span className="ferr"><Icon name="error" />That doesn't look like an IPFS CID.</span> : null}
       <TxButton className="btn lg block" icon="add_box" disabled={!ready}
-        send={() => w.writer.registerBatch(f.productName.trim(), f.lotNumber.trim(), Math.floor(new Date(f.expiry).getTime() / 1000), Math.round(f.lo * 10), Math.round(f.hi * 10), "")}
+        send={() => w.writer.registerBatch(f.productName.trim(), f.lotNumber.trim(), Math.floor(new Date(f.expiry).getTime() / 1000), Math.round(f.lo * 10), Math.round(f.hi * 10), coaCid)}
         success="Batch registered!" successBody={`${f.productName} · ${f.lotNumber} is ready to hand off.`} failTitle="Couldn't register it"
         onDone={() => { setF(blank); setTouched(false); onDone(); }}>
         Register batch

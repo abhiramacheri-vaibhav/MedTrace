@@ -2,19 +2,24 @@
 // road, an optional note, actions, and a collapsed Details row for the technical values.
 // Only real readings are shown: the reading chip appears only when the sensor reported a breach.
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import Track from "./Track.jsx";
 import { useWallet } from "../lib/wallet.jsx";
 import { useBatchHistory } from "../pages/useBatches.js";
-import { ACTION_LABELS, monthYear, productLook, shortAddr, tempC, when } from "../lib/contract.js";
+import { ACTION_LABELS, ipfsUrl, isCid, monthYear, productLook, shortAddr, tempC, when } from "../lib/contract.js";
 
 const NOTE_ICON = { info: "info", wait: "hourglass_top", safe: "check_circle", lock: "lock", danger: "local_fire_department" };
 const BADGE_ICON = { new: "auto_awesome", alert: "priority_high", wait: "local_shipping", done: "celebration" };
+// An IPFS CID opens through the gateway; anything else is plain text.
+const CidLink = ({ cid, children }) => (
+  <a className="doclink" href={ipfsUrl(cid)} target="_blank" rel="noreferrer" title={cid}>{children || `${cid.slice(0, 10)}…`}<Icon name="open_in_new" /></a>
+);
 const deg = (tenths) => { const v = tenths / 10; return Number.isInteger(v) ? `${v}` : v.toFixed(1); };
 
 export default function BatchCard({ batch, actions, note, noteKind = "info", noteIcon, badge, badgeKind = "new", alertBorder = false, refreshKey }) {
   const { reader, who } = useWallet();
-  const { history, alerts } = useBatchHistory(reader, batch, refreshKey);
+  const { history, alerts, documents } = useBatchHistory(reader, batch, refreshKey);
   const [open, setOpen] = useState(false);
   const [slam, setSlam] = useState(false);
   const wasCertified = useRef(batch.certified);
@@ -32,6 +37,7 @@ export default function BatchCard({ batch, actions, note, noteKind = "info", not
 
   const look = productLook(batch.productName);
   const reading = alerts[0]?.readingTenthsC;
+  const logCid = alerts.find((a) => isCid(a.logCid))?.logCid;
   const label = (a) => who(a)?.name || shortAddr(a);
 
   return (
@@ -52,7 +58,11 @@ export default function BatchCard({ batch, actions, note, noteKind = "info", not
         <span className="cold"><Icon name="ac_unit" />{deg(batch.minTempTenthsC)}°</span>
         <div className="tbar"><div className="fill" />{reading !== undefined ? <div className="mark" style={{ left: reading > batch.maxTempTenthsC ? "100%" : "0%" }} /> : null}</div>
         <span className="hot">{deg(batch.maxTempTenthsC)}°<Icon name="sunny" fill /></span>
-        {reading !== undefined ? <span className="tread bad">{tempC(reading)}</span> : <span className="tread">no alerts</span>}
+        {reading !== undefined
+          ? (logCid
+            ? <a className="tread bad" href={ipfsUrl(logCid)} target="_blank" rel="noreferrer" title="Open the sensor log">{tempC(reading)}<Icon name="open_in_new" /></a>
+            : <span className="tread bad">{tempC(reading)}</span>)
+          : <span className="tread">no alerts</span>}
       </div>
       <Track batch={batch} history={history} who={who} alerts={alerts} size="mini" />
       {note ? <div className={`note ${noteKind}`}><Icon name={noteIcon || NOTE_ICON[noteKind]} fill />{note}</div> : null}
@@ -63,8 +73,16 @@ export default function BatchCard({ batch, actions, note, noteKind = "info", not
           <span className="k">Batch id</span><span className="v">{batch.id}</span>
           <span className="k">Factory</span><span className="v">{batch.manufacturer}</span>
           <span className="k">Now with</span><span className="v">{batch.currentHolder}</span>
+          <span className="k">Documents</span>
+          <span className="v txt">
+            {documents.length
+              ? documents.map((d, i) => <div key={i}>{isCid(d.cid) ? <CidLink cid={d.cid}>{d.label}</CidLink> : `${d.label} · ${d.cid}`} · {label(d.uploadedBy)} · {when(d.timestamp)}</div>)
+              : "None attached yet"}
+          </span>
           <span className="k">History</span>
-          <span className="v txt">{history.map((h, i) => <div key={i}>{ACTION_LABELS[h.action]} · {label(h.actor)} · {when(h.timestamp)}{h.details ? ` · ${h.details}` : ""}</div>)}</span>
+          <span className="v txt">{history.map((h, i) => <div key={i}>{ACTION_LABELS[h.action]} · {label(h.actor)} · {when(h.timestamp)}{h.details ? <> · {isCid(h.details) ? <CidLink cid={h.details} /> : h.details}</> : null}</div>)}</span>
+          <span className="k">Patient view</span>
+          <span className="v txt"><Link className="doclink" to={`/verify?lot=${encodeURIComponent(batch.lotNumber)}`}>See what a patient sees for lot {batch.lotNumber}<Icon name="arrow_forward" /></Link></span>
         </div>
       ) : null}
     </article>

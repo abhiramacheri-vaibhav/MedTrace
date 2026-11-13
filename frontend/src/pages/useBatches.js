@@ -22,18 +22,23 @@ export function useBatches(reader) {
   return { batches, loading, reload, tick };
 }
 
-// History + temperature readings for one batch; re-fetches when the batch changes.
-import { loadTempAlerts, normalizeHistory } from "../lib/contract.js";
+// History, temperature readings and IPFS documents for one batch; re-fetches when the batch changes.
+import { loadDocuments, loadTempAlerts, normalizeHistory } from "../lib/contract.js";
 export function useBatchHistory(reader, batch, refreshKey) {
   const [history, setHistory] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [documents, setDocuments] = useState([]);
   useEffect(() => {
     if (!reader || !batch) return;
     let live = true;
-    Promise.all([reader.getHistory(batch.id), batch.temperatureBreached ? loadTempAlerts(batch.id) : []])
-      .then(([h, a]) => { if (live) { setHistory(normalizeHistory(h)); setAlerts(a); } })
+    Promise.all([
+      reader.getHistory(batch.id),
+      batch.temperatureBreached ? loadTempAlerts(batch.id) : [],
+      loadDocuments(reader, batch.id).catch(() => []),
+    ])
+      .then(([h, a, d]) => { if (live) { setHistory(normalizeHistory(h)); setAlerts(a); setDocuments(d); } })
       .catch(() => {});
     return () => { live = false; };
   }, [reader, batch?.id, batch?.status, batch?.currentHolder, batch?.pendingHolder, batch?.temperatureBreached, batch?.certified, refreshKey]);
-  return { history, alerts };
+  return { history, alerts, documents };
 }
