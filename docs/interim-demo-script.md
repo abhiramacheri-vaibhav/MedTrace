@@ -39,7 +39,7 @@ Target: 5 minutes (allowed 4:30 to 5:30). Everyone speaks. Read it loosely, in y
 
 > This is our contract on Polygon Amoy. The green tick means the code is verified, so anyone can read exactly what's running. Every action you'll see next shows up here as a real transaction.
 
-## 1:15 – 3:10 · One batch, factory to patient (Shrey)
+## 1:15 – 3:10 · One batch, factory to patient (Neric)
 
 **Screen:** the app as FastMed Logistics.
 
