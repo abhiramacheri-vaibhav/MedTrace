@@ -56,7 +56,7 @@ Target: 5 minutes (allowed 4:30 to 5:30). Everyone speaks. Read it loosely, in y
 6. Click **"See what a patient sees."**
    > And the patient types the lot number from the box: "Safe to use." Checking is free. No wallet, no fees.
 
-## 3:10 – 3:35 · The recall (Vaibhav)
+## 3:10 – 3:35 · The recall (Maulik)
 
 **Screen:** the second window, patient page for `AMX-2611-B`, showing green. Then the app as **Drug Regulator**.
 
