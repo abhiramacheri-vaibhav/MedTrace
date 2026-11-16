@@ -1,6 +1,6 @@
 # MedTrace Interim Demo: script
 
-Target: 5 minutes (allowed 4:30 to 5:30). Everyone speaks. Read it loosely, in your own words.
+Target: 5 minutes (allowed 4:30 to 5:30). Speakers: Shrey, Maulik and Neric (Rohan and Vaibhav cannot join). Read it loosely, in your own words.
 
 ## Before we hit record
 
@@ -74,11 +74,11 @@ Target: 5 minutes (allowed 4:30 to 5:30). Everyone speaks. Read it loosely, in y
 **Maulik:**
 > The main contract is `contracts/MedTrace.sol`. `registerBatch` creates a batch. `transferCustody` and `confirmReceipt` are the two-step hand-off. `markDispensed` refuses a batch that got too warm. I also added `getBatchIdsByLot`, which is how the patient page finds a batch from the lot number on the box.
 
-**Vaibhav:**
-> `contracts/access/MedTraceAccess.sol` decides who can do what. Each wallet gets a role, like factory or regulator. `certifyBatch` and `recallBatch` are regulator-only. The patient page, `frontend/src/pages/Verify.jsx`, calls `verifyBatch` and listens for the `BatchRecalled` event.
+**Maulik** (Vaibhav's part):
+> Vaibhav built the access rules and the patient page. `contracts/access/MedTraceAccess.sol` decides who can do what. Each wallet gets a role, like factory or regulator. `certifyBatch` and `recallBatch` are regulator-only. The patient page, `frontend/src/pages/Verify.jsx`, calls `verifyBatch` and listens for the `BatchRecalled` event.
 
-**Rohan:**
-> Big files don't go on the blockchain. `offchain/ipfs/uploadToIpfs.js` puts them on IPFS and gives back a short ID, and only that ID is stored on-chain. The sensor, `offchain/iot-simulator/simulateSensor.js`, only writes to the chain when a reading is out of range. It uploads its log first. That's batch #1, the one from the start.
+**Maulik** (Rohan's part):
+> Rohan built the off-chain side. Big files don't go on the blockchain. `offchain/ipfs/uploadToIpfs.js` puts them on IPFS and gives back a short ID, and only that ID is stored on-chain. The sensor, `offchain/iot-simulator/simulateSensor.js`, only writes to the chain when a reading is out of range. It uploads its log first. That's batch #1, the one from the start.
 
 **Neric:**
 > `scripts/deploy.js` deploys and verifies the contract. Our tests in `test/` cover the normal flow and the edge cases, like a stranger trying to move a batch, or recalling something already dispensed. The README has the gas cost of every function.
@@ -86,7 +86,7 @@ Target: 5 minutes (allowed 4:30 to 5:30). Everyone speaks. Read it loosely, in y
 **Shrey:**
 > The web app reads and writes through `frontend/src/lib/contract.js`, and MetaMask signs every action. Each role gets its own page, so a pharmacy only sees what a pharmacy can do.
 
-## 4:35 – 5:00 · Wrap up (Rohan)
+## 4:35 – 5:00 · Wrap up (Maulik)
 
 > So: a batch can be tracked from factory to patient, every hand-off needs both sides, regulators can recall, sensors can raise alarms, and anyone can check a batch for free. Next we'll do file uploads in the app, measure costs and scale, and write the report. Thanks for watching.
 
