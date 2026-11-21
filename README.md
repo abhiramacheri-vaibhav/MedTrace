@@ -3,7 +3,7 @@
 **CSE 540: Engineering Blockchain Applications (Fall B 2026), Project 1**
 **Team BlockRx:** Shrey Bishnoi, Maulik Jadav, Neric Joel, Vaibhav Abhiramacheri, Rohan Chandrashekar
 
-> **Status: Smart Contract Design Draft (due 11/01/2026).** The contract interfaces, roles, storage, and core rules are written and compile. Items marked `TODO` in the code are planned for the Interim Demo (11/15) and Final Project (12/04).
+> **Status: Final Project (due 12/04/2026).** The contract is deployed and verified on Polygon Amoy, every role has a page in the web app, and the test suite (120 tests) covers 100 % of statements, branches, functions and lines. Section 6 takes you from a fresh clone to a running app.
 
 ---
 
@@ -49,30 +49,35 @@ The full design, including the status state machine, the hand-off sequence, and 
 ```
 medtrace/
 ├── contracts/
-│   ├── MedTrace.sol              # main contract: batches, custody, documents, alerts
+│   ├── MedTrace.sol                # main contract: batches, custody, documents, alerts, views
 │   ├── interfaces/
-│   │   └── IMedTrace.sol         # public interface: types, events, function signatures
+│   │   └── IMedTrace.sol           # public interface: types, events, function signatures
 │   └── access/
-│       └── MedTraceAccess.sol    # role-based access control (OpenZeppelin)
-├── test/                         # Hardhat/Chai tests (100 passing)
-│   ├── MedTrace.test.js          # core flow, lot lookup, breach dispense rule, history pages (21)
-│   ├── MedTrace.edgecases.test.js  # edge cases: custody, dispensing, expiry, recall, access (55)
-│   └── deploy.test.js            # deploy script: helpers, files it writes, verification fallbacks (24)
+│       └── MedTraceAccess.sol      # role-based access control (OpenZeppelin AccessControl)
+├── test/                           # Hardhat + Chai tests (120 passing, 100 % coverage)
+│   ├── MedTrace.test.js            # core flow, lot lookup, breach dispense rule, history pages (21)
+│   ├── MedTrace.edgecases.test.js  # custody, dispensing, expiry, recall, documents, access (55)
+│   ├── MedTrace.lifecycle.test.js  # multi-step journeys: verdict, expiry, documents, history (20)
+│   └── deploy.test.js              # deploy script: helpers, files it writes, verification (24)
 ├── scripts/
-│   ├── deploy.js                 # deploy to localhost or Polygon Amoy
-│   └── seedDemo.js               # local demo data: roles + one batch end-to-end
+│   ├── deploy.js                   # deploy to localhost or Polygon Amoy, then verify
+│   ├── seedDemo.js                 # local demo: deploy, one wallet per role, one batch end to end
+│   └── onboardDemo.js              # Amoy demo: onboard the team wallets and top up their POL
 ├── deployments/
-│   └── amoy.json                 # written by deploy.js: address, tx hash, block
+│   ├── amoy.json                   # written by deploy.js: address, tx hash, block
+│   └── amoy-demo-participants.json # public addresses of the Amoy demo wallets
 ├── offchain/
-│   ├── ipfs/uploadToIpfs.js      # IPFS upload helper (Pinata)
+│   ├── ipfs/uploadToIpfs.js        # IPFS upload helper (Pinata)
 │   └── iot-simulator/simulateSensor.js  # temperature sensor simulator
-├── frontend/                     # React dApp (planned for Interim Demo)
+├── frontend/                       # React + Vite web app, one page per role (see frontend/README.md)
+│   ├── src/pages/                  # Factory, Distributor, Pharmacy, Regulator, Admin, Verify (patient)
+│   └── scripts/sync-contract.mjs   # writes src/contract.json (address + ABI) for a network
 ├── docs/
-│   ├── architecture.png          # system architecture diagram
-│   └── design.md                 # detailed design notes
+│   ├── architecture.png            # system architecture diagram
+│   └── design.md                   # detailed design notes
 ├── hardhat.config.js
 ├── package.json
-└── .env.example                  # template for secrets (never commit .env)
+└── .env.example                    # template for secrets (never commit .env)
 ```
 
 ## 4. Smart Contract Overview
@@ -82,7 +87,6 @@ The interface (`IMedTrace.sol`) defines every type, event, and function. `MedTra
 | Function | Caller | Purpose |
 |---|---|---|
 | `registerParticipant(account, role, name)` | Admin | Onboard a wallet with a role and display name |
-| `removeParticipant(account, role)` | Admin | Revoke a participant role while preserving audit history |
 | `registerBatch(product, lot, expiry, minTemp, maxTemp, coaCid)` | Manufacturer | Create a batch; caller becomes its first holder |
 | `transferCustody(batchId, to)` | Current holder | Step 1 of a hand-off (status becomes `InTransit`) |
 | `confirmReceipt(batchId)` | Receiver | Step 2 of a hand-off (status becomes `Received`) |
@@ -91,10 +95,11 @@ The interface (`IMedTrace.sol`) defines every type, event, and function. `MedTra
 | `recordTemperatureAlert(batchId, reading, logCid)` | Sensor | Log an out-of-range temperature |
 | `certifyBatch(batchId, certCid)` | Regulator | Approve the batch |
 | `recallBatch(batchId, reason)` | Regulator | Pull the batch; it is frozen afterwards |
+| `removeParticipant(account, role)` | Admin | Take a role away (for example a pharmacy that loses its licence) |
 | `getBatch` / `getHistory` / `getDocuments` | Anyone | Read the batch record, audit trail, and documents |
-| `getBatchIdsByLot(lotNumber)` | Anyone | Find all batch IDs for an exact printed lot number |
-| `getHistoryPage(batchId, offset, limit)` | Anyone | Read a bounded audit-history page and its current total |
-| `totalBatches()` | Anyone | Read the number of registered batches |
+| `getHistoryPage(batchId, offset, limit)` | Anyone | One page of the audit trail plus the total count, for long histories |
+| `getBatchIdsByLot(lotNumber)` | Anyone | Batch IDs for the lot number printed on the box (exact match) |
+| `totalBatches()` | Anyone | Number of batches registered so far (also the newest batch ID) |
 | `verifyBatch(batchId)` | Anyone | Returns `exists`, `safeToUse`, `status`, and `holder` for the patient page |
 
 **Custom errors:** Contract validation uses named custom errors; see [the error names and integration handoff](docs/custom-errors.md) for test assertions, suggested frontend messages, and deployment compatibility. The currently deployed Amoy contract retains its original revert strings until redeployment.
@@ -113,17 +118,28 @@ The interface (`IMedTrace.sol`) defines every type, event, and function. `MedTra
 | [@openzeppelin/contracts](https://docs.openzeppelin.com/contracts/5.x/) | ^5.0 | Audited `AccessControl` |
 | Solidity | 0.8.24 | Contract language (Hardhat downloads it automatically) |
 | dotenv | ^16 | Loads secrets from `.env` |
+| React, Vite, react-router-dom | ^18.3, ^5.4, ^6.26 | Web app (`frontend/`) |
 | [MetaMask](https://metamask.io/) | Browser extension | Wallet for testnet transactions |
-| IPFS pinning service ([Pinata](https://pinata.cloud/)) | Free tier | Off-chain document storage (Interim Demo) |
+| IPFS pinning service ([Pinata](https://pinata.cloud/)) | Free tier | Off-chain document storage |
 
 ## 6. Setup
 
+You need [Node.js](https://nodejs.org/) 18 or newer and Git. MetaMask is only needed for the Amoy testnet; on a local chain you can act as any role without it.
+
 ```bash
-git clone <this-repo-url>
-cd medtrace
-npm install
-cp .env.example .env    # then fill in values (only needed for testnet)
+git clone https://github.com/abhiramacheri-vaibhav/MedTrace.git
+cd MedTrace
+npm install                            # contracts, tests and scripts
+cd frontend && npm install && cd ..    # web app
 ```
+
+A `.env` file is only needed for the testnet, the sensor simulator and IPFS uploads:
+
+```bash
+cp .env.example .env        # PowerShell: Copy-Item .env.example .env
+```
+
+`.env.example` explains every value. `.env` is git-ignored; never commit it or any private key.
 
 ## 7. Usage
 
@@ -131,7 +147,8 @@ cp .env.example .env    # then fill in values (only needed for testnet)
 
 ```bash
 npx hardhat compile
-npx hardhat test
+npx hardhat test                    # 120 tests
+npm run coverage                    # coverage report, also written to coverage/index.html
 REPORT_GAS=true npx hardhat test    # also print gas cost per function
 ```
 
@@ -141,38 +158,122 @@ On Windows PowerShell, set the variable first (it stays set for that window):
 $env:REPORT_GAS = "true"; npx hardhat test
 ```
 
+### Test coverage
+
+`npm run coverage` (solidity-coverage, part of the Hardhat toolbox) runs the whole suite against an instrumented copy of the contracts.
+
+| File | Statements | Branches | Functions | Lines |
+|---|---:|---:|---:|---:|
+| `MedTrace.sol` | 100 % | 100 % | 100 % | 100 % |
+| `access/MedTraceAccess.sol` | 100 % | 100 % | 100 % | 100 % |
+| `interfaces/IMedTrace.sol` | 100 % | 100 % | 100 % | 100 % |
+
+Every rejected call is tested with its exact revert reason and, where it matters, a check that the batch did not change. The suites cover each role's permissions, every status change, unknown batch IDs (0 and past the end), expiry down to the second, readings exactly on the temperature limits, empty strings, document types outside the list, and paging with empty, single-entry and maximum-size pages.
+
 ### Gas report
 
-Measured on the local Hardhat network with Solidity 0.8.24, optimizer on (200 runs) and `evmVersion` cancun, over the full test suite (100 tests). To reproduce, run `REPORT_GAS=true npx hardhat test` (PowerShell form above). Figures are gas units; `-` means the reporter saw only one value.
+Measured on the local Hardhat network with Solidity 0.8.24, optimizer on (200 runs) and `evmVersion` cancun, over the full test suite (120 tests). To reproduce, run `REPORT_GAS=true npx hardhat test` (PowerShell form above). Figures are gas units; `-` means the reporter saw only one value.
 
 | Function | Min | Max | Avg | Calls |
 |---|---:|---:|---:|---:|
-| `registerBatch` | 287,196 | 440,478 | 426,343 | 65 |
-| `certifyBatch` | 65,817 | 207,927 | 136,872 | 12 |
-| `recordTemperatureAlert` | 66,100 | 208,456 | 179,768 | 10 |
-| `attachDocument` | 155,369 | 157,785 | 156,180 | 6 |
-| `recallBatch` | 88,384 | 91,256 | 89,140 | 8 |
-| `registerParticipant` | 55,594 | 75,561 | 75,461 | 438 |
-| `transferCustody` | 72,599 | 75,110 | 73,484 | 42 |
-| `confirmReceipt` | - | - | 72,262 | 34 |
-| `markDispensed` | - | - | 66,990 | 7 |
-| `removeParticipant` | - | - | 28,890 | 3 |
+| `registerBatch` | 287,136 | 440,526 | 421,891 | 87 |
+| `certifyBatch` | 65,817 | 207,927 | 144,767 | 18 |
+| `recordTemperatureAlert` | 66,100 | 208,456 | 182,352 | 11 |
+| `attachDocument` | 155,369 | 157,821 | 156,202 | 12 |
+| `recallBatch` | 88,384 | 91,256 | 89,074 | 13 |
+| `registerParticipant` | 36,066 | 75,561 | 75,361 | 543 |
+| `transferCustody` | 72,599 | 75,110 | 73,486 | 65 |
+| `confirmReceipt` | - | - | 72,262 | 51 |
+| `markDispensed` | - | - | 66,990 | 12 |
+| `removeParticipant` | - | - | 28,890 | 4 |
 
 **Deployment:** `MedTrace` costs 3,014,797 gas, 5.0 % of the block gas limit (60,000,000 on the local Hardhat network).
 
-`registerBatch` is the most expensive call because it stores a new batch record with two strings (product name and lot number), adds the batch to the lot-number index, and writes a history entry that repeats the product name; with a Certificate of Analysis CID it also stores a document and a second history entry. The wide range for `certifyBatch` and `recordTemperatureAlert` comes from the same pattern: when a CID is passed, it is written into the history entry and into a separate document record. Every batch action appends a history entry, so even simple steps such as `confirmReceipt` and `markDispensed` cost around 66,000-73,000 gas. `verifyBatch` and `getHistory` are view functions, so a patient checking a batch sends no transaction and pays nothing.
+`registerBatch` is the most expensive call because it stores a new batch record with two strings (product name and lot number), adds the batch to the lot-number index, and writes a history entry that repeats the product name; with a Certificate of Analysis CID it also stores a document and a second history entry. The wide range for `certifyBatch` and `recordTemperatureAlert` comes from the same pattern: when a CID is passed, it is written into the history entry and into a separate document record. Every batch action appends a history entry, so even simple steps such as `confirmReceipt` and `markDispensed` cost around 66,000-73,000 gas. The `registerParticipant` minimum is a wallet that already has the role being onboarded again, which only rewrites its display name. `verifyBatch` and `getHistory` are view functions, so a patient checking a batch sends no transaction and pays nothing.
 
 The `registerBatch` minimum and average move by a few gas units between runs: the tests derive expiry dates from the current block time, and calldata cost depends on the bytes of that timestamp. All other figures are stable.
 
-### Run locally with demo data
+### Run the whole app locally
+
+This needs three terminals, each starting in the repo folder. Nothing here costs real money; the local chain gives you 20 funded test accounts.
 
 ```bash
-# Terminal 1: start a local blockchain with 20 funded test accounts
+# Terminal 1: a local blockchain (leave it running)
 npx hardhat node
+```
 
-# Terminal 2: deploy, onboard one wallet per role, and move a batch to a pharmacy
+```bash
+# Terminal 2: deploy, onboard one wallet per role, and walk one batch to the pharmacy
 npm run seed:local
 ```
+
+The seed script prints the contract address and one wallet per role. On a fresh node they are always:
+
+| Role | Name | Address (Hardhat account) |
+|---|---|---|
+| Contract | MedTrace | `0x5FbDB2315678afecb367f032d93F642f64180aa3` |
+| Admin | deployer | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` (#0) |
+| Manufacturer | Acme Pharma | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` (#1) |
+| Distributor | FastMed Logistics | `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` (#2) |
+| Pharmacy | Tempe Pharmacy | `0x90F79bf6EB2c4f870365E785982E1f101E93b906` (#3) |
+| Regulator | Drug Regulator | `0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65` (#4) |
+| Sensor | IoT Simulator | `0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc` (#5) |
+
+It also registers batch 1 (Insulin 100IU, lot `LOT-2026-001`), has the regulator certify it and moves it to the pharmacy.
+
+```bash
+# Terminal 3: point the web app at the local contract and start it
+cd frontend
+npm run sync-contract -- 0x5FbDB2315678afecb367f032d93F642f64180aa3 localhost
+npm run dev
+```
+
+Open http://localhost:5173. `sync-contract` writes `frontend/src/contract.json` (address and ABI). That file is git-ignored, so run it again whenever you redeploy or switch networks. If you restart `npx hardhat node`, the chain starts empty, so run `npm run seed:local` again.
+
+**Acting as a role without MetaMask (local chain only).** Add `?as=<address>` to a page link and the app signs with that unlocked Hardhat account:
+
+- Factory: http://localhost:5173/factory?as=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+- Distributor: http://localhost:5173/distributor?as=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+- Pharmacy: http://localhost:5173/pharmacy?as=0x90F79bf6EB2c4f870365E785982E1f101E93b906
+- Regulator: http://localhost:5173/regulator?as=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+- Admin: http://localhost:5173/admin?as=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+- Patient (no wallet at all): http://localhost:5173/verify?lot=LOT-2026-001
+
+The app ignores `?as=` on any public network. To use MetaMask locally instead, add a network with RPC `http://127.0.0.1:8545` and chain ID `31337`, then import the private keys that `npx hardhat node` prints for the accounts above. Those keys are public test keys, so never send real funds to them.
+
+### A full walkthrough
+
+With the app running locally, this follows one new batch through every role:
+
+1. **Factory** (`/factory`): register a batch with a product name, lot number, expiry date and safe temperature range (in °C). A Certificate of Analysis IPFS CID is optional. The factory is the first holder.
+2. **Regulator** (`/regulator`): certify the batch. A batch only counts as "safe to use" once it is certified. The regulator can also recall any batch that has not been dispensed, with a reason.
+3. **Factory**: hand the batch to the distributor (drag the box along the road, or use the hand-off button). The status becomes `InTransit`.
+4. **Distributor** (`/distributor`): accept the delivery (status `Received`), then hand it on to the pharmacy.
+5. **Pharmacy** (`/pharmacy`): accept the delivery, then dispense it. Dispensing is refused if the batch is expired, recalled, or has had a temperature alert.
+6. **Sensor** (optional): run the temperature simulator (below) against the batch ID to record an out-of-range reading. The batch then shows a flame on its road and can no longer be dispensed.
+7. **Patient** (`/verify`, no wallet): type the lot number from the box, or open `/verify?lot=<lot number>` directly. The page shows "safe to use" or the reason it is not, plus the batch's journey and documents, and it updates live when a recall or alert happens.
+
+**Admin** (`/admin`): onboard a new wallet with a role and a display name, or remove a role.
+
+The same steps work against the Amoy deployment once the app is synced to it (section 8), with each role's wallet connected through MetaMask.
+
+### Interacting from the console
+
+Every function in section 4 can also be called from a Hardhat console, which is handy for checking state:
+
+```bash
+npx hardhat console --network localhost
+```
+
+```js
+const mt = await ethers.getContractAt("MedTrace", "0x5FbDB2315678afecb367f032d93F642f64180aa3");
+await mt.totalBatches();                   // 1n after seed:local
+await mt.verifyBatch(1);                   // [exists, safeToUse, status, holder]
+await mt.getBatchIdsByLot("LOT-2026-001"); // [1n]
+(await mt.getHistory(1)).length;
+```
+
+Status numbers are `0 Created`, `1 InTransit`, `2 Received`, `3 Dispensed`, `4 Recalled`.
 
 ### Run the temperature simulator (local)
 
@@ -199,8 +300,10 @@ From code: `const { uploadFile, uploadJson, gatewayUrl } = require("./offchain/i
 
 ## 8. Deployment to Polygon Amoy Testnet
 
-1. Add the Polygon Amoy network to MetaMask (Chain ID `80002`, RPC `https://polygon-amoy-bor-rpc.publicnode.com`). The older `rpc-amoy.polygon.technology` address no longer resolves.
-2. Get free test POL from the [Polygon faucet](https://faucet.polygon.technology/).
+The team deployment is already live (table below), so you only need these steps to deploy your own copy or to redeploy after a contract change.
+
+1. Add the Polygon Amoy network to MetaMask (Chain ID `80002`, RPC `https://polygon-amoy-bor-rpc.publicnode.com`, currency `POL`, explorer `https://amoy.polygonscan.com`). The older `rpc-amoy.polygon.technology` address no longer resolves.
+2. Get free test POL for the deployer wallet from the [Polygon faucet](https://faucet.polygon.technology/). A deployment uses about 3 million gas.
 3. Fill in `.env` (copied from `.env.example`):
    - `PRIVATE_KEY`: the deployer's private key, 64 hex characters. Use a test-only wallet, never one that holds real funds.
    - `ETHERSCAN_API_KEY`: only needed for source verification. One key from etherscan.io works for Amoy through Etherscan API V2, so no separate Polygonscan key is needed.
@@ -212,7 +315,7 @@ From code: `const { uploadFile, uploadJson, gatewayUrl } = require("./offchain/i
    The script:
    - checks the wallet first and stops with a clear message if `PRIVATE_KEY` is missing or the wallet has no POL (it also warns if the balance looks too low for the estimated cost);
    - deploys `MedTrace` with the deployer as admin, printing the transaction hash as soon as it is sent and the address and explorer links once it is mined;
-   - writes `deployments/amoy.json` (address, deployer, tx hash, block number, time, explorer link) and `frontend/src/contract.json` (address and ABI for the dApp);
+   - writes `deployments/amoy.json` (address, deployer, tx hash, block number, time, explorer link) and `frontend/src/contract.json` (address and ABI for the web app);
    - if `ETHERSCAN_API_KEY` is set, waits 5 confirmations and verifies the source on the block explorer, retrying if the explorer has not indexed the contract yet.
 
    A failed verification does not undo the deployment. `deployments/amoy.json` holds only public data and should be committed.
@@ -220,7 +323,14 @@ From code: `const { uploadFile, uploadJson, gatewayUrl } = require("./offchain/i
    ```bash
    npx hardhat verify --network amoy <CONTRACT_ADDRESS> <ADMIN_ADDRESS>
    ```
-6. Onboard the other team wallets with `registerParticipant` (through the dApp, Remix, or a Hardhat console).
+6. Point the web app at the new contract. `sync-contract` reads the deploy block from `deployments/amoy.json`; the app needs it to read past events:
+   ```bash
+   cd frontend
+   npm run sync-contract -- <CONTRACT_ADDRESS> amoy
+   npm run dev
+   ```
+7. Onboard the participants. Roles and batches do not carry over from an older deployment. For the team's demo wallets, put the new address in `deployments/amoy-demo-participants.json` (or set `CONTRACT_ADDRESS` in `.env`) and run `npm run demo:onboard` (see below). For any other wallet, use the Admin page of the web app.
+8. After a redeploy, update the address in the table below and in `deployments/amoy-demo-participants.json`, and tell the team so everyone re-runs `sync-contract`.
 
 ### Deployed contract (Polygon Amoy)
 
@@ -233,9 +343,9 @@ From code: `const { uploadFile, uploadJson, gatewayUrl } = require("./offchain/i
 | Chain ID | 80002 |
 | Source | [Verified on Polygonscan](https://amoy.polygonscan.com/address/0x2749c1613F6dfF8283434885b985d287AC5FA2B8#code) |
 
-The same details are in [`deployments/amoy.json`](deployments/amoy.json). To point the dApp at this contract, run `npm run sync-contract -- 0x2749c1613F6dfF8283434885b985d287AC5FA2B8 amoy` in `frontend/`.
+The same details are in [`deployments/amoy.json`](deployments/amoy.json). To point the web app at this contract, run `npm run sync-contract -- 0x2749c1613F6dfF8283434885b985d287AC5FA2B8 amoy` in `frontend/`. Anyone can use the patient page (`/verify`) against it without a wallet; each role page needs a wallet that has been onboarded with that role.
 
-This deployment includes lot-number lookup, the temperature-breach dispense rule and history pagination. It replaces the first deployment at `0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f`, which predates those changes and should no longer be used. Roles and batches do not carry over: every participant has to be registered again on the new contract.
+This deployment includes lot-number lookup, the temperature-breach dispense rule and history pagination. It replaces the first deployment at `0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f`, which predates those changes and should no longer be used.
 
 To onboard the demo participants (Acme Pharma, FastMed Logistics, Tempe Pharmacy, Drug Regulator) and give each one 0.15 test POL for gas, the admin runs this with the deployer's `PRIVATE_KEY` in `.env`. The wallets are listed in [`deployments/amoy-demo-participants.json`](deployments/amoy-demo-participants.json). Re-running it is safe, because finished steps are skipped.
 
@@ -245,11 +355,12 @@ npm run demo:onboard
 
 ## 9. Roadmap
 
-| Milestone | Date | Scope |
-|---|---|---|
-| Smart Contract Design Draft | 11/01/2026 | Interfaces, roles, core logic, repo, README, initial tests ✅ |
-| Interim Demo | 11/15/2026 | Amoy deployment, IPFS uploads, IoT simulator with real CIDs, first dApp pages |
-| Final Project | 12/04/2026 | Complete dApp, full test coverage, gas analysis, IEEE report, presentation |
+| Milestone | Date | Scope | Status |
+|---|---|---|---|
+| Smart Contract Design Draft | 11/01/2026 | Interfaces, roles, core logic, repo, README, first tests | ✅ Done |
+| Interim Demo | 11/15/2026 | Amoy deployment and verification, lot lookup, breach dispense rule, paged history, IPFS uploads, sensor alerts with real CIDs, a page for every role, live patient page | ✅ Done |
+| Code freeze | 11/25/2026 | Custom contract errors, file upload from the web app, QR codes on batch cards, 100 % test coverage, refreshed gas table, final README | In progress |
+| Final Project | 12/04/2026 | Final code, IEEE report, presentation and demo video | Planned |
 
 **Out of scope:** real sensor hardware, mainnet deployment, and integration with existing industry systems.
 
@@ -261,8 +372,8 @@ Every member owns a blockchain development task. Commit history in each area is 
 |---|---|---|
 | Shrey Bishnoi | Web3 front-end app: MetaMask connection, Ethers.js contract wiring, role-based pages (manufacturer, distributor, pharmacy, regulator) | `frontend/` (app shell and role pages) |
 | Vaibhav Abhiramacheri | Access control and regulator module, plus the patient "verify batch" page with live event listeners | `contracts/access/`, `certifyBatch` / `recallBatch`, `frontend/src/pages/Verify*` |
-| Maulik Jadav | Core batch and custody logic, plus the open contract TODOs (lot-number lookup, `getHistory` pagination, dispense policy on temperature breach) | `contracts/MedTrace.sol` |
-| Neric Joel | Contract tests, edge cases and gas report, plus Amoy deployment and explorer verification | `test/`, `scripts/deploy.js`, Amoy address in README |
+| Maulik Jadav | Core batch and custody logic: lot-number lookup, `getHistory` pagination, dispense policy on temperature breach | `contracts/MedTrace.sol` |
+| Neric Joel | Contract tests, edge cases, coverage and gas report, plus Amoy deployment, explorer verification and the setup, usage and deployment docs | `test/`, `scripts/`, README sections 6 to 9 |
 | Rohan Chandrashekar | IPFS uploads (real CIDs on-chain) and the IoT simulator alert flow | `offchain/` |
 
 **Workflow:** feature branches and pull requests, with at least one teammate reviewing each PR before merge. Tasks are tracked on the GitHub Projects board.

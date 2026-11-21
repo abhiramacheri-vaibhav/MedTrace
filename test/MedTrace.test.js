@@ -1,6 +1,8 @@
-// Draft test suite for MedTrace (owner: Neric Joel, Testing & Deployment Lead).
-// Covers the main happy path plus the key permission and state rules.
-// TODO (interim demo): add tests for documents, expiry edge cases and gas usage.
+// Core test suite for MedTrace (owner: Neric Joel, Testing & Deployment Lead).
+// Covers the main happy path, the key permission and state rules, lot-number
+// lookup, the temperature-breach dispense rule and paged history. Edge cases
+// live in MedTrace.edgecases.test.js and multi-step journeys in
+// MedTrace.lifecycle.test.js.
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { time } = require("@nomicfoundation/hardhat-network-helpers");
