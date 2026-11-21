@@ -102,6 +102,8 @@ The interface (`IMedTrace.sol`) defines every type, event, and function. `MedTra
 | `totalBatches()` | Anyone | Number of batches registered so far (also the newest batch ID) |
 | `verifyBatch(batchId)` | Anyone | Returns `exists`, `safeToUse`, `status`, and `holder` for the patient page |
 
+**Custom errors:** Contract validation uses named custom errors; see [the error names and integration handoff](docs/custom-errors.md) for test assertions, suggested frontend messages, and deployment compatibility. The currently deployed Amoy contract retains its original revert strings until redeployment.
+
 **Events:** `BatchRegistered`, `CustodyTransferred`, `ReceiptConfirmed`, `BatchDispensed`, `DocumentAttached`, `TempAlert`, `BatchCertified`, `BatchRecalled`, `ParticipantRegistered`, `ParticipantRemoved`.
 
 **Batch status flow:** `Created → InTransit → Received → (InTransit → Received …) → Dispensed`. A regulator can move any batch that hasn't been dispensed to `Recalled`.

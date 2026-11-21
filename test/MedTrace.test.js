@@ -70,16 +70,12 @@ describe("MedTrace", function () {
   it("only lets the intended receiver confirm a hand-off", async function () {
     const id = await registerSampleBatch();
     await medTrace.connect(maker).transferCustody(id, distributor.address);
-    await expect(medTrace.connect(pharmacy).confirmReceipt(id)).to.be.revertedWith(
-      "MedTrace: caller is not the receiver"
-    );
+    await expect(medTrace.connect(pharmacy).confirmReceipt(id)).to.be.revertedWithCustomError(medTrace, "CallerNotReceiver");
   });
 
   it("records temperature alerts only for out-of-range readings", async function () {
     const id = await registerSampleBatch();
-    await expect(medTrace.connect(sensor).recordTemperatureAlert(id, 50, "QmLog")).to.be.revertedWith(
-      "MedTrace: reading is within range"
-    );
+    await expect(medTrace.connect(sensor).recordTemperatureAlert(id, 50, "QmLog")).to.be.revertedWithCustomError(medTrace, "ReadingWithinRange");
     await expect(medTrace.connect(sensor).recordTemperatureAlert(id, 120, "QmLog"))
       .to.emit(medTrace, "TempAlert").withArgs(id, 120, "QmLog");
     expect((await medTrace.getBatch(id)).temperatureBreached).to.equal(true);
@@ -94,9 +90,7 @@ describe("MedTrace", function () {
     await medTrace.connect(regulator).recallBatch(id, "Contamination found");
     [, safe] = await medTrace.verifyBatch(id);
     expect(safe).to.equal(false);
-    await expect(medTrace.connect(maker).transferCustody(id, distributor.address)).to.be.revertedWith(
-      "MedTrace: batch is recalled"
-    );
+    await expect(medTrace.connect(maker).transferCustody(id, distributor.address)).to.be.revertedWithCustomError(medTrace, "BatchIsRecalled");
   });
 
   it("reports unknown batch IDs as not existing (possible counterfeit)", async function () {
@@ -137,7 +131,7 @@ describe("MedTrace", function () {
     it("does not index a rejected registration", async function () {
       const expiry = (await time.latest()) + ONE_YEAR;
       await expect(medTrace.connect(maker).registerBatch("Invalid", "LOT-BAD", expiry, 80, 20, ""))
-        .to.be.revertedWith("MedTrace: bad temperature range");
+        .to.be.revertedWithCustomError(medTrace, "InvalidTemperatureRange");
       expect(await medTrace.getBatchIdsByLot("LOT-BAD")).to.deep.equal([]);
       expect(await medTrace.totalBatches()).to.equal(0n);
     });
@@ -155,7 +149,7 @@ describe("MedTrace", function () {
           if (!certifyFirst) await medTrace.connect(regulator).certifyBatch(id, "");
           const history = await medTrace.getHistory(id);
           await expect(medTrace.connect(pharmacy).markDispensed(id))
-            .to.be.revertedWith("MedTrace: temperature breached");
+            .to.be.revertedWithCustomError(medTrace, "TemperatureBreached");
           const batch = await medTrace.getBatch(id);
           expect(batch.status).to.equal(Status.Received);
           expect(batch.temperatureBreached).to.equal(true);
@@ -171,7 +165,7 @@ describe("MedTrace", function () {
       await medTrace.connect(pharmacy).confirmReceipt(id);
       for (const reading of [20, 80]) {
         await expect(medTrace.connect(sensor).recordTemperatureAlert(id, reading, ""))
-          .to.be.revertedWith("MedTrace: reading is within range");
+          .to.be.revertedWithCustomError(medTrace, "ReadingWithinRange");
       }
       await medTrace.connect(regulator).certifyBatch(id, "");
       await expect(medTrace.connect(pharmacy).markDispensed(id))
@@ -221,7 +215,7 @@ describe("MedTrace", function () {
     it("rejects unknown batches", async function () {
       for (const id of [0, 1]) {
         await expect(medTrace.getHistoryPage(id, 0, 10))
-          .to.be.revertedWith("MedTrace: batch not found");
+          .to.be.revertedWithCustomError(medTrace, "BatchNotFound");
       }
     });
 

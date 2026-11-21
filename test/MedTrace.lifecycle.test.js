@@ -149,7 +149,7 @@ describe("MedTrace lifecycle", function () {
       await moveToPharmacy(id);
       await time.increaseTo(expiry + ONE_DAY);
 
-      await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWith("MedTrace: batch expired");
+      await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWithCustomError(medTrace, "BatchExpired");
 
       await expect(medTrace.connect(pharmacy).transferCustody(id, distributor.address))
         .to.emit(medTrace, "CustodyTransferred")
@@ -193,9 +193,7 @@ describe("MedTrace lifecycle", function () {
         .to.emit(medTrace, "DocumentAttached")
         .withArgs(id, DocType.ShippingRecord, "QmDispenseLog", pharmacy.address);
       for (const caller of [maker, distributor]) {
-        await expect(medTrace.connect(caller).attachDocument(id, DocType.Other, "QmLate")).to.be.revertedWith(
-          "MedTrace: only holder or regulator"
-        );
+        await expect(medTrace.connect(caller).attachDocument(id, DocType.Other, "QmLate")).to.be.revertedWithCustomError(medTrace, "CallerNotHolderOrRegulator");
       }
     });
 

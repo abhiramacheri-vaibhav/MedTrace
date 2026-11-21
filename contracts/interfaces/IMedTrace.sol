@@ -29,6 +29,73 @@ pragma solidity ^0.8.24;
  */
 interface IMedTrace {
     // ---------------------------------------------------------------------
+    // Custom errors (no arguments; names identify the rejected rule)
+    // ---------------------------------------------------------------------
+
+    /// @notice The batch ID has never been registered.
+    error BatchNotFound();
+
+    /// @notice The caller does not currently hold the batch.
+    error CallerNotHolder();
+
+    /// @notice The batch is recalled and cannot undergo this action.
+    error BatchIsRecalled();
+
+    /// @notice The batch is dispensed and cannot undergo this action.
+    error BatchAlreadyDispensed();
+
+    /// @notice A batch must have a product name.
+    error EmptyProductName();
+
+    /// @notice A batch must have a printed lot number.
+    error EmptyLotNumber();
+
+    /// @notice Registration requires an expiry strictly after the block timestamp.
+    error ExpiryNotInFuture();
+
+    /// @notice The minimum temperature must be below the maximum.
+    error InvalidTemperatureRange();
+
+    /// @notice A pending hand-off must finish before another can start.
+    error HandoffAlreadyInProgress();
+
+    /// @notice Custody must be transferred to a different wallet.
+    error CannotTransferToSelf();
+
+    /// @notice The receiver must have a distributor or pharmacy role.
+    error InvalidReceiver();
+
+    /// @notice Only an in-transit batch can have its receipt confirmed.
+    error BatchNotInTransit();
+
+    /// @notice Only the pending receiver can confirm receipt.
+    error CallerNotReceiver();
+
+    /// @notice Dispensing requires a completed receipt.
+    error BatchNotReceived();
+
+    /// @notice The batch has reached or passed its expiry timestamp.
+    error BatchExpired();
+
+    /// @notice A recorded temperature breach permanently blocks dispensing.
+    error TemperatureBreached();
+
+    /// @notice Only the current holder or a regulator may attach documents.
+    error CallerNotHolderOrRegulator();
+
+    /// @notice An attached document must have a nonempty IPFS reference.
+    error EmptyCid();
+
+    /// @notice Only readings strictly outside the permitted range are recorded.
+    error ReadingWithinRange();
+
+    /// @notice Regulator approval has already been recorded.
+    error BatchAlreadyCertified();
+
+    /// @notice A recall must include a nonempty reason for the audit trail.
+    error RecallReasonRequired();
+
+    // ---------------------------------------------------------------------
     // Data types
     // ---------------------------------------------------------------------
 
@@ -165,7 +232,8 @@ interface IMedTrace {
 
     /**
      * @notice Link an IPFS document (certificate, shipping record, log) to a batch.
-     * @dev    Allowed for the current holder or a regulator.
+     * @dev    Allowed for the current holder or a regulator; CID must be nonempty.
+     *         Documents can still be appended to final batches for audit evidence.
      */
     function attachDocument(uint256 batchId, DocType docType, string calldata cid) external;
 
@@ -182,9 +250,13 @@ interface IMedTrace {
     // ---------------------------------------------------------------------
 
     /// @notice Regulator approves a batch after reviewing its documents.
+    /// @dev Only REGULATOR_ROLE; approval is recorded once and cannot clear a
+    ///      temperature breach. An optional certificate anchors the review on IPFS.
     function certifyBatch(uint256 batchId, string calldata certificateCid) external;
 
     /// @notice Regulator recalls a batch; it can no longer be moved or dispensed.
+    /// @dev Only REGULATOR_ROLE, with a nonempty reason for the audit trail.
+    ///      Cancels a pending hand-off; recalled and dispensed batches are final.
     function recallBatch(uint256 batchId, string calldata reason) external;
 
     // ---------------------------------------------------------------------
@@ -192,6 +264,7 @@ interface IMedTrace {
     // ---------------------------------------------------------------------
 
     /// @notice Full on-chain record of one batch.
+    /// @dev Unknown IDs revert so callers cannot mistake an empty record for a batch.
     function getBatch(uint256 batchId) external view returns (Batch memory);
 
     /**
@@ -203,6 +276,7 @@ interface IMedTrace {
     function getBatchIdsByLot(string calldata lotNumber) external view returns (uint256[] memory);
 
     /// @notice Complete audit trail of one batch, oldest first.
+    /// @dev Unknown IDs revert. Use getHistoryPage to bound reads as the trail grows.
     function getHistory(uint256 batchId) external view returns (HistoryEntry[] memory);
 
     /**
@@ -217,10 +291,13 @@ interface IMedTrace {
         external view returns (HistoryEntry[] memory entries, uint256 total);
 
     /// @notice All IPFS documents linked to one batch.
+    /// @dev Unknown IDs revert; returns references so large files stay off-chain.
     function getDocuments(uint256 batchId) external view returns (Document[] memory);
 
     /**
      * @notice One-call summary used by the patient "verify my medicine" page.
+     * @dev Unknown IDs return exists=false rather than revert, allowing patients
+     *      to check unrecognized medicine without a wallet or a transaction.
      * @return exists     The batch ID was registered by a real manufacturer.
      * @return safeToUse  exists AND certified AND not recalled AND not expired
      *                    AND no temperature breach.
@@ -233,5 +310,6 @@ interface IMedTrace {
         returns (bool exists, bool safeToUse, BatchStatus status, address holder);
 
     /// @notice Number of batches registered so far.
+    /// @dev IDs start at one and are never reused, so this is also the highest ID.
     function totalBatches() external view returns (uint256);
 }
