@@ -82,6 +82,7 @@ The interface (`IMedTrace.sol`) defines every type, event, and function. `MedTra
 | Function | Caller | Purpose |
 |---|---|---|
 | `registerParticipant(account, role, name)` | Admin | Onboard a wallet with a role and display name |
+| `removeParticipant(account, role)` | Admin | Revoke a participant role while preserving audit history |
 | `registerBatch(product, lot, expiry, minTemp, maxTemp, coaCid)` | Manufacturer | Create a batch; caller becomes its first holder |
 | `transferCustody(batchId, to)` | Current holder | Step 1 of a hand-off (status becomes `InTransit`) |
 | `confirmReceipt(batchId)` | Receiver | Step 2 of a hand-off (status becomes `Received`) |
@@ -91,7 +92,12 @@ The interface (`IMedTrace.sol`) defines every type, event, and function. `MedTra
 | `certifyBatch(batchId, certCid)` | Regulator | Approve the batch |
 | `recallBatch(batchId, reason)` | Regulator | Pull the batch; it is frozen afterwards |
 | `getBatch` / `getHistory` / `getDocuments` | Anyone | Read the batch record, audit trail, and documents |
+| `getBatchIdsByLot(lotNumber)` | Anyone | Find all batch IDs for an exact printed lot number |
+| `getHistoryPage(batchId, offset, limit)` | Anyone | Read a bounded audit-history page and its current total |
+| `totalBatches()` | Anyone | Read the number of registered batches |
 | `verifyBatch(batchId)` | Anyone | Returns `exists`, `safeToUse`, `status`, and `holder` for the patient page |
+
+**Custom errors:** Contract validation uses named custom errors; see [the error names and integration handoff](docs/custom-errors.md) for test assertions, suggested frontend messages, and deployment compatibility. The currently deployed Amoy contract retains its original revert strings until redeployment.
 
 **Events:** `BatchRegistered`, `CustodyTransferred`, `ReceiptConfirmed`, `BatchDispensed`, `DocumentAttached`, `TempAlert`, `BatchCertified`, `BatchRecalled`, `ParticipantRegistered`, `ParticipantRemoved`.
 
