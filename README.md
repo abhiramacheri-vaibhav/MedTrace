@@ -347,7 +347,7 @@ The team deployment is already live (table below), so you only need these steps 
 
 The same details are in [`deployments/amoy.json`](deployments/amoy.json). To point the web app at this contract, run `npm run sync-contract -- 0x194b7DdB2c70b89F8E8A312A9eaAdb8f6cb7A491 amoy` in `frontend/`. Anyone can use the patient page (`/verify`) against it without a wallet; each role page needs a wallet that has been onboarded with that role.
 
-This deployment includes lot-number lookup, the temperature-breach dispense rule and history pagination. It replaces the first deployment at `0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f`, which predates those changes and should no longer be used.
+This deployment (21 Nov 2026) includes lot-number lookup, the temperature-breach dispense rule, history pagination and named custom errors. It replaces two earlier deployments that should no longer be used: `0x2749c1613F6dfF8283434885b985d287AC5FA2B8` (10 Nov, text error messages) and `0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f` (the first one, before lot lookup and pagination).
 
 To onboard the demo participants (Acme Pharma, FastMed Logistics, Tempe Pharmacy, Drug Regulator) and give each one 0.15 test POL for gas, the admin runs this with the deployer's `PRIVATE_KEY` in `.env`. The wallets are listed in [`deployments/amoy-demo-participants.json`](deployments/amoy-demo-participants.json). Re-running it is safe, because finished steps are skipped.
 
