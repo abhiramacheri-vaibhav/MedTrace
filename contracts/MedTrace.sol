@@ -23,10 +23,6 @@ import {MedTraceAccess} from "./access/MedTraceAccess.sol";
  *  - _batches[id]    : the current state of each batch
  *  - _history[id]    : append-only audit trail (never edited or deleted)
  *  - _documents[id]  : IPFS documents linked to the batch
- *
- * DRAFT STATUS (Smart Contract Design Draft, due 11/01/2026):
- *  Interfaces, roles, storage and core rules are in place. Items marked
- *  "TODO" are planned for the interim demo / final phase.
  */
 contract MedTrace is IMedTrace, MedTraceAccess {
     // ---------------------------------------------------------------------
@@ -48,21 +44,21 @@ contract MedTrace is IMedTrace, MedTraceAccess {
 
     /// @dev Reverts if the batch ID was never registered.
     modifier batchExists(uint256 batchId) {
-        require(batchId > 0 && batchId <= _batchCount, "MedTrace: batch not found");
+        if (batchId == 0 || batchId > _batchCount) revert BatchNotFound();
         _;
     }
 
     /// @dev Reverts unless the caller physically holds the batch right now.
     modifier onlyHolder(uint256 batchId) {
-        require(_batches[batchId].currentHolder == msg.sender, "MedTrace: caller is not the holder");
+        if (_batches[batchId].currentHolder != msg.sender) revert CallerNotHolder();
         _;
     }
 
     /// @dev Recalled and dispensed batches are frozen: no more moves allowed.
     modifier notFinal(uint256 batchId) {
         BatchStatus s = _batches[batchId].status;
-        require(s != BatchStatus.Recalled, "MedTrace: batch is recalled");
-        require(s != BatchStatus.Dispensed, "MedTrace: batch already dispensed");
+        if (s == BatchStatus.Recalled) revert BatchIsRecalled();
+        if (s == BatchStatus.Dispensed) revert BatchAlreadyDispensed();
         _;
     }
 
@@ -82,10 +78,10 @@ contract MedTrace is IMedTrace, MedTraceAccess {
         int16 maxTempTenthsC,
         string calldata coaCid
     ) external onlyRole(MANUFACTURER_ROLE) returns (uint256 batchId) {
-        require(bytes(productName).length > 0, "MedTrace: empty product name");
-        require(bytes(lotNumber).length > 0, "MedTrace: empty lot number");
-        require(expiryDate > block.timestamp, "MedTrace: already expired");
-        require(minTempTenthsC < maxTempTenthsC, "MedTrace: bad temperature range");
+        if (bytes(productName).length == 0) revert EmptyProductName();
+        if (bytes(lotNumber).length == 0) revert EmptyLotNumber();
+        if (expiryDate <= block.timestamp) revert ExpiryNotInFuture();
+        if (minTempTenthsC >= maxTempTenthsC) revert InvalidTemperatureRange();
 
         batchId = ++_batchCount;
         _batchIdsByLot[keccak256(bytes(lotNumber))].push(batchId);
@@ -125,12 +121,11 @@ contract MedTrace is IMedTrace, MedTraceAccess {
     {
         Batch storage b = _batches[batchId];
         // A batch can only leave once the previous hand-off is finished.
-        require(
-            b.status == BatchStatus.Created || b.status == BatchStatus.Received,
-            "MedTrace: hand-off already in progress"
-        );
-        require(to != msg.sender, "MedTrace: cannot transfer to self");
-        require(_canReceiveBatch(to), "MedTrace: receiver not a distributor or pharmacy");
+        if (b.status != BatchStatus.Created && b.status != BatchStatus.Received) {
+            revert HandoffAlreadyInProgress();
+        }
+        if (to == msg.sender) revert CannotTransferToSelf();
+        if (!_canReceiveBatch(to)) revert InvalidReceiver();
 
         b.pendingHolder = to;
         b.status = BatchStatus.InTransit;
@@ -142,8 +137,8 @@ contract MedTrace is IMedTrace, MedTraceAccess {
     /// @inheritdoc IMedTrace
     function confirmReceipt(uint256 batchId) external batchExists(batchId) notFinal(batchId) {
         Batch storage b = _batches[batchId];
-        require(b.status == BatchStatus.InTransit, "MedTrace: batch not in transit");
-        require(b.pendingHolder == msg.sender, "MedTrace: caller is not the receiver");
+        if (b.status != BatchStatus.InTransit) revert BatchNotInTransit();
+        if (b.pendingHolder != msg.sender) revert CallerNotReceiver();
 
         b.currentHolder = msg.sender;
         b.pendingHolder = address(0);
@@ -162,9 +157,9 @@ contract MedTrace is IMedTrace, MedTraceAccess {
         notFinal(batchId)
     {
         Batch storage b = _batches[batchId];
-        require(b.status == BatchStatus.Received, "MedTrace: batch not received yet");
-        require(block.timestamp < b.expiryDate, "MedTrace: batch expired");
-        require(!b.temperatureBreached, "MedTrace: temperature breached");
+        if (b.status != BatchStatus.Received) revert BatchNotReceived();
+        if (block.timestamp >= b.expiryDate) revert BatchExpired();
+        if (b.temperatureBreached) revert TemperatureBreached();
 
         b.status = BatchStatus.Dispensed;
 
@@ -181,11 +176,10 @@ contract MedTrace is IMedTrace, MedTraceAccess {
         external
         batchExists(batchId)
     {
-        require(
-            _batches[batchId].currentHolder == msg.sender || hasRole(REGULATOR_ROLE, msg.sender),
-            "MedTrace: only holder or regulator"
-        );
-        require(bytes(cid).length > 0, "MedTrace: empty CID");
+        if (_batches[batchId].currentHolder != msg.sender && !hasRole(REGULATOR_ROLE, msg.sender)) {
+            revert CallerNotHolderOrRegulator();
+        }
+        if (bytes(cid).length == 0) revert EmptyCid();
         _addDocument(batchId, docType, cid);
     }
 
@@ -198,10 +192,9 @@ contract MedTrace is IMedTrace, MedTraceAccess {
     {
         Batch storage b = _batches[batchId];
         // Only out-of-range readings are worth paying gas for.
-        require(
-            readingTenthsC < b.minTempTenthsC || readingTenthsC > b.maxTempTenthsC,
-            "MedTrace: reading is within range"
-        );
+        if (readingTenthsC >= b.minTempTenthsC && readingTenthsC <= b.maxTempTenthsC) {
+            revert ReadingWithinRange();
+        }
 
         b.temperatureBreached = true;
 
@@ -226,7 +219,7 @@ contract MedTrace is IMedTrace, MedTraceAccess {
         notFinal(batchId)
     {
         Batch storage b = _batches[batchId];
-        require(!b.certified, "MedTrace: already certified");
+        if (b.certified) revert BatchAlreadyCertified();
 
         b.certified = true;
 
@@ -245,7 +238,7 @@ contract MedTrace is IMedTrace, MedTraceAccess {
         batchExists(batchId)
         notFinal(batchId)
     {
-        require(bytes(reason).length > 0, "MedTrace: reason required");
+        if (bytes(reason).length == 0) revert RecallReasonRequired();
 
         Batch storage b = _batches[batchId];
         b.status = BatchStatus.Recalled;

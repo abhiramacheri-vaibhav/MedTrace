@@ -66,9 +66,7 @@ describe("MedTrace edge cases", function () {
     describe("non-holder hand-off", function () {
       it("rejects a hand-off started by a stranger", async function () {
         const id = await registerSampleBatch();
-        await expect(medTrace.connect(stranger).transferCustody(id, distributor.address)).to.be.revertedWith(
-          "MedTrace: caller is not the holder"
-        );
+        await expect(medTrace.connect(stranger).transferCustody(id, distributor.address)).to.be.revertedWithCustomError(medTrace, "CallerNotHolder");
         const batch = await medTrace.getBatch(id);
         expect(batch.status).to.equal(Status.Created);
         expect(batch.currentHolder).to.equal(maker.address);
@@ -77,18 +75,14 @@ describe("MedTrace edge cases", function () {
 
       it("rejects a hand-off by a registered distributor that does not hold the batch", async function () {
         const id = await registerSampleBatch();
-        await expect(medTrace.connect(distributor).transferCustody(id, pharmacy.address)).to.be.revertedWith(
-          "MedTrace: caller is not the holder"
-        );
+        await expect(medTrace.connect(distributor).transferCustody(id, pharmacy.address)).to.be.revertedWithCustomError(medTrace, "CallerNotHolder");
         expect((await medTrace.getBatch(id)).status).to.equal(Status.Created);
       });
 
       it("rejects a hand-off by the pending receiver before it confirms receipt", async function () {
         const id = await registerSampleBatch();
         await medTrace.connect(maker).transferCustody(id, distributor.address);
-        await expect(medTrace.connect(distributor).transferCustody(id, pharmacy.address)).to.be.revertedWith(
-          "MedTrace: caller is not the holder"
-        );
+        await expect(medTrace.connect(distributor).transferCustody(id, pharmacy.address)).to.be.revertedWithCustomError(medTrace, "CallerNotHolder");
         const batch = await medTrace.getBatch(id);
         expect(batch.pendingHolder).to.equal(distributor.address);
         expect(batch.currentHolder).to.equal(maker.address);
@@ -98,9 +92,7 @@ describe("MedTrace edge cases", function () {
         const id = await registerSampleBatch();
         await medTrace.connect(maker).transferCustody(id, distributor.address);
         await medTrace.connect(distributor).confirmReceipt(id);
-        await expect(medTrace.connect(maker).transferCustody(id, distributor2.address)).to.be.revertedWith(
-          "MedTrace: caller is not the holder"
-        );
+        await expect(medTrace.connect(maker).transferCustody(id, distributor2.address)).to.be.revertedWithCustomError(medTrace, "CallerNotHolder");
         expect((await medTrace.getBatch(id)).currentHolder).to.equal(distributor.address);
       });
     });
@@ -108,9 +100,7 @@ describe("MedTrace edge cases", function () {
     it("rejects a second hand-off while one is still pending", async function () {
       const id = await registerSampleBatch();
       await medTrace.connect(maker).transferCustody(id, distributor.address);
-      await expect(medTrace.connect(maker).transferCustody(id, distributor2.address)).to.be.revertedWith(
-        "MedTrace: hand-off already in progress"
-      );
+      await expect(medTrace.connect(maker).transferCustody(id, distributor2.address)).to.be.revertedWithCustomError(medTrace, "HandoffAlreadyInProgress");
       // The original hand-off is untouched.
       const batch = await medTrace.getBatch(id);
       expect(batch.status).to.equal(Status.InTransit);
@@ -121,9 +111,7 @@ describe("MedTrace edge cases", function () {
       const id = await registerSampleBatch();
       // Unregistered wallet, and registered wallets with the wrong role.
       for (const to of [stranger, regulator, sensor, admin]) {
-        await expect(medTrace.connect(maker).transferCustody(id, to.address)).to.be.revertedWith(
-          "MedTrace: receiver not a distributor or pharmacy"
-        );
+        await expect(medTrace.connect(maker).transferCustody(id, to.address)).to.be.revertedWithCustomError(medTrace, "InvalidReceiver");
       }
       const batch = await medTrace.getBatch(id);
       expect(batch.status).to.equal(Status.Created);
@@ -132,27 +120,21 @@ describe("MedTrace edge cases", function () {
 
     it("rejects a hand-off to the zero address", async function () {
       const id = await registerSampleBatch();
-      await expect(medTrace.connect(maker).transferCustody(id, ethers.ZeroAddress)).to.be.revertedWith(
-        "MedTrace: receiver not a distributor or pharmacy"
-      );
+      await expect(medTrace.connect(maker).transferCustody(id, ethers.ZeroAddress)).to.be.revertedWithCustomError(medTrace, "InvalidReceiver");
     });
 
     it("rejects a hand-off to self", async function () {
       const id = await registerSampleBatch();
       await medTrace.connect(maker).transferCustody(id, distributor.address);
       await medTrace.connect(distributor).confirmReceipt(id);
-      await expect(medTrace.connect(distributor).transferCustody(id, distributor.address)).to.be.revertedWith(
-        "MedTrace: cannot transfer to self"
-      );
+      await expect(medTrace.connect(distributor).transferCustody(id, distributor.address)).to.be.revertedWithCustomError(medTrace, "CannotTransferToSelf");
       expect((await medTrace.getBatch(id)).status).to.equal(Status.Received);
     });
 
     it("rejects confirmReceipt when the batch is not in transit", async function () {
       const id = await registerSampleBatch();
       // Still at the factory.
-      await expect(medTrace.connect(distributor).confirmReceipt(id)).to.be.revertedWith(
-        "MedTrace: batch not in transit"
-      );
+      await expect(medTrace.connect(distributor).confirmReceipt(id)).to.be.revertedWithCustomError(medTrace, "BatchNotInTransit");
       let batch = await medTrace.getBatch(id);
       expect(batch.status).to.equal(Status.Created);
       expect(batch.currentHolder).to.equal(maker.address);
@@ -160,9 +142,7 @@ describe("MedTrace edge cases", function () {
       // Already received: a second confirmation is rejected too.
       await medTrace.connect(maker).transferCustody(id, distributor.address);
       await medTrace.connect(distributor).confirmReceipt(id);
-      await expect(medTrace.connect(distributor).confirmReceipt(id)).to.be.revertedWith(
-        "MedTrace: batch not in transit"
-      );
+      await expect(medTrace.connect(distributor).confirmReceipt(id)).to.be.revertedWithCustomError(medTrace, "BatchNotInTransit");
       batch = await medTrace.getBatch(id);
       expect(batch.status).to.equal(Status.Received);
       expect(batch.currentHolder).to.equal(distributor.address);
@@ -181,29 +161,25 @@ describe("MedTrace edge cases", function () {
       for (const badId of [0n, 999n]) {
         it(`reverts with "batch not found" for ID ${badId} on every batch-scoped call`, async function () {
           await registerSampleBatch(); // make sure at least one real batch exists
-          const notFound = "MedTrace: batch not found";
+          const notFound = "BatchNotFound";
 
-          await expect(medTrace.connect(maker).transferCustody(badId, distributor.address)).to.be.revertedWith(notFound);
-          await expect(medTrace.connect(distributor).confirmReceipt(badId)).to.be.revertedWith(notFound);
-          await expect(medTrace.connect(pharmacy).markDispensed(badId)).to.be.revertedWith(notFound);
-          await expect(medTrace.connect(regulator).attachDocument(badId, DocType.Other, "QmDoc")).to.be.revertedWith(
-            notFound
-          );
-          await expect(medTrace.connect(sensor).recordTemperatureAlert(badId, 120, "QmLog")).to.be.revertedWith(
-            notFound
-          );
-          await expect(medTrace.connect(regulator).certifyBatch(badId, "QmCert")).to.be.revertedWith(notFound);
-          await expect(medTrace.connect(regulator).recallBatch(badId, "Bad lot")).to.be.revertedWith(notFound);
+          await expect(medTrace.connect(maker).transferCustody(badId, distributor.address)).to.be.revertedWithCustomError(medTrace, notFound);
+          await expect(medTrace.connect(distributor).confirmReceipt(badId)).to.be.revertedWithCustomError(medTrace, notFound);
+          await expect(medTrace.connect(pharmacy).markDispensed(badId)).to.be.revertedWithCustomError(medTrace, notFound);
+          await expect(medTrace.connect(regulator).attachDocument(badId, DocType.Other, "QmDoc")).to.be.revertedWithCustomError(medTrace, notFound);
+          await expect(medTrace.connect(sensor).recordTemperatureAlert(badId, 120, "QmLog")).to.be.revertedWithCustomError(medTrace, notFound);
+          await expect(medTrace.connect(regulator).certifyBatch(badId, "QmCert")).to.be.revertedWithCustomError(medTrace, notFound);
+          await expect(medTrace.connect(regulator).recallBatch(badId, "Bad lot")).to.be.revertedWithCustomError(medTrace, notFound);
 
-          await expect(medTrace.getBatch(badId)).to.be.revertedWith(notFound);
-          await expect(medTrace.getHistory(badId)).to.be.revertedWith(notFound);
-          await expect(medTrace.getDocuments(badId)).to.be.revertedWith(notFound);
+          await expect(medTrace.getBatch(badId)).to.be.revertedWithCustomError(medTrace, notFound);
+          await expect(medTrace.getHistory(badId)).to.be.revertedWithCustomError(medTrace, notFound);
+          await expect(medTrace.getDocuments(badId)).to.be.revertedWithCustomError(medTrace, notFound);
         });
       }
 
       it("treats the next not-yet-registered ID as unknown", async function () {
         const id = await registerSampleBatch();
-        await expect(medTrace.getBatch(id + 1n)).to.be.revertedWith("MedTrace: batch not found");
+        await expect(medTrace.getBatch(id + 1n)).to.be.revertedWithCustomError(medTrace, "BatchNotFound");
       });
     });
   });
@@ -215,9 +191,7 @@ describe("MedTrace edge cases", function () {
       await moveToPharmacy(id);
       await medTrace.connect(pharmacy).markDispensed(id);
 
-      await expect(medTrace.connect(regulator).recallBatch(id, "Late contamination report")).to.be.revertedWith(
-        "MedTrace: batch already dispensed"
-      );
+      await expect(medTrace.connect(regulator).recallBatch(id, "Late contamination report")).to.be.revertedWithCustomError(medTrace, "BatchAlreadyDispensed");
       expect((await medTrace.getBatch(id)).status).to.equal(Status.Dispensed);
     });
 
@@ -226,15 +200,9 @@ describe("MedTrace edge cases", function () {
       await moveToPharmacy(id);
       await medTrace.connect(pharmacy).markDispensed(id);
 
-      await expect(medTrace.connect(pharmacy).transferCustody(id, distributor.address)).to.be.revertedWith(
-        "MedTrace: batch already dispensed"
-      );
-      await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWith(
-        "MedTrace: batch already dispensed"
-      );
-      await expect(medTrace.connect(regulator).certifyBatch(id, "QmCert")).to.be.revertedWith(
-        "MedTrace: batch already dispensed"
-      );
+      await expect(medTrace.connect(pharmacy).transferCustody(id, distributor.address)).to.be.revertedWithCustomError(medTrace, "BatchAlreadyDispensed");
+      await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWithCustomError(medTrace, "BatchAlreadyDispensed");
+      await expect(medTrace.connect(regulator).certifyBatch(id, "QmCert")).to.be.revertedWithCustomError(medTrace, "BatchAlreadyDispensed");
       const batch = await medTrace.getBatch(id);
       expect(batch.status).to.equal(Status.Dispensed);
       expect(batch.currentHolder).to.equal(pharmacy.address);
@@ -258,9 +226,7 @@ describe("MedTrace edge cases", function () {
       await medTrace.connect(distributor).transferCustody(id, pharmacy.address);
 
       // The pharmacy is only the pending holder until it confirms.
-      await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWith(
-        "MedTrace: caller is not the holder"
-      );
+      await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWithCustomError(medTrace, "CallerNotHolder");
       expect((await medTrace.getBatch(id)).status).to.equal(Status.InTransit);
     });
 
@@ -270,9 +236,7 @@ describe("MedTrace edge cases", function () {
       // Pharmacy returns the batch to a distributor; it is still the holder
       // while in transit, but the batch is no longer in the Received state.
       await medTrace.connect(pharmacy).transferCustody(id, distributor.address);
-      await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWith(
-        "MedTrace: batch not received yet"
-      );
+      await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWithCustomError(medTrace, "BatchNotReceived");
       const batch = await medTrace.getBatch(id);
       expect(batch.status).to.equal(Status.InTransit);
       expect(batch.pendingHolder).to.equal(distributor.address);
@@ -287,9 +251,7 @@ describe("MedTrace edge cases", function () {
       await medTrace.connect(hospital).registerBatch("Saline 0.9%", "LOT-H1", expiry, 20, 250, "");
       const id = await medTrace.totalBatches();
 
-      await expect(medTrace.connect(hospital).markDispensed(id)).to.be.revertedWith(
-        "MedTrace: batch not received yet"
-      );
+      await expect(medTrace.connect(hospital).markDispensed(id)).to.be.revertedWithCustomError(medTrace, "BatchNotReceived");
       expect((await medTrace.getBatch(id)).status).to.equal(Status.Created);
     });
 
@@ -307,7 +269,7 @@ describe("MedTrace edge cases", function () {
 
         [, safe] = await medTrace.verifyBatch(id);
         expect(safe).to.equal(false);
-        await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWith("MedTrace: batch expired");
+        await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWithCustomError(medTrace, "BatchExpired");
         expect((await medTrace.getBatch(id)).status).to.equal(Status.Received);
       });
 
@@ -328,7 +290,7 @@ describe("MedTrace edge cases", function () {
         await moveToPharmacy(id);
 
         await time.setNextBlockTimestamp(expiry);
-        await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWith("MedTrace: batch expired");
+        await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWithCustomError(medTrace, "BatchExpired");
         expect((await medTrace.getBatch(id)).status).to.equal(Status.Received);
       });
     });
@@ -349,24 +311,20 @@ describe("MedTrace edge cases", function () {
       expect(batch.pendingHolder).to.equal(ethers.ZeroAddress);
       expect(batch.currentHolder).to.equal(maker.address);
 
-      await expect(medTrace.connect(distributor).confirmReceipt(id)).to.be.revertedWith(
-        "MedTrace: batch is recalled"
-      );
+      await expect(medTrace.connect(distributor).confirmReceipt(id)).to.be.revertedWithCustomError(medTrace, "BatchIsRecalled");
     });
 
     it("blocks dispensing of a recalled batch already at the pharmacy", async function () {
       const id = await registerSampleBatch();
       await moveToPharmacy(id);
       await medTrace.connect(regulator).recallBatch(id, "Packaging defect");
-      await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWith("MedTrace: batch is recalled");
+      await expect(medTrace.connect(pharmacy).markDispensed(id)).to.be.revertedWithCustomError(medTrace, "BatchIsRecalled");
       expect((await medTrace.getBatch(id)).status).to.equal(Status.Recalled);
     });
 
     it("requires a reason", async function () {
       const id = await registerSampleBatch();
-      await expect(medTrace.connect(regulator).recallBatch(id, "")).to.be.revertedWith(
-        "MedTrace: reason required"
-      );
+      await expect(medTrace.connect(regulator).recallBatch(id, "")).to.be.revertedWithCustomError(medTrace, "RecallReasonRequired");
       expect((await medTrace.getBatch(id)).status).to.equal(Status.Created);
     });
 
@@ -393,9 +351,7 @@ describe("MedTrace edge cases", function () {
     it("rejects certifying the same batch twice", async function () {
       const id = await registerSampleBatch();
       await medTrace.connect(regulator).certifyBatch(id, "QmCert");
-      await expect(medTrace.connect(regulator).certifyBatch(id, "QmCert2")).to.be.revertedWith(
-        "MedTrace: already certified"
-      );
+      await expect(medTrace.connect(regulator).certifyBatch(id, "QmCert2")).to.be.revertedWithCustomError(medTrace, "BatchAlreadyCertified");
       // Only the first certificate was stored (CoA + one regulator certificate).
       expect((await medTrace.getDocuments(id)).length).to.equal(2);
     });
@@ -405,12 +361,8 @@ describe("MedTrace edge cases", function () {
       await medTrace.connect(regulator).recallBatch(id, "Contamination found");
       const historyBefore = (await medTrace.getHistory(id)).length;
 
-      await expect(medTrace.connect(regulator).recallBatch(id, "Second recall")).to.be.revertedWith(
-        "MedTrace: batch is recalled"
-      );
-      await expect(medTrace.connect(regulator).certifyBatch(id, "QmCert")).to.be.revertedWith(
-        "MedTrace: batch is recalled"
-      );
+      await expect(medTrace.connect(regulator).recallBatch(id, "Second recall")).to.be.revertedWithCustomError(medTrace, "BatchIsRecalled");
+      await expect(medTrace.connect(regulator).certifyBatch(id, "QmCert")).to.be.revertedWithCustomError(medTrace, "BatchIsRecalled");
       expect((await medTrace.getHistory(id)).length).to.equal(historyBefore);
       expect((await medTrace.getBatch(id)).certified).to.equal(false);
     });
@@ -459,9 +411,7 @@ describe("MedTrace edge cases", function () {
     it("treats readings exactly on the range limits as in range", async function () {
       const id = await registerSampleBatch();
       for (const reading of [20, 80]) {
-        await expect(medTrace.connect(sensor).recordTemperatureAlert(id, reading, "")).to.be.revertedWith(
-          "MedTrace: reading is within range"
-        );
+        await expect(medTrace.connect(sensor).recordTemperatureAlert(id, reading, "")).to.be.revertedWithCustomError(medTrace, "ReadingWithinRange");
       }
       expect((await medTrace.getBatch(id)).temperatureBreached).to.equal(false);
     });
@@ -479,9 +429,7 @@ describe("MedTrace edge cases", function () {
     it("rejects sensor alerts on a recalled batch", async function () {
       const id = await registerSampleBatch();
       await medTrace.connect(regulator).recallBatch(id, "Contamination found");
-      await expect(medTrace.connect(sensor).recordTemperatureAlert(id, 120, "QmLog")).to.be.revertedWith(
-        "MedTrace: batch is recalled"
-      );
+      await expect(medTrace.connect(sensor).recordTemperatureAlert(id, 120, "QmLog")).to.be.revertedWithCustomError(medTrace, "BatchIsRecalled");
       expect((await medTrace.getBatch(id)).temperatureBreached).to.equal(false);
     });
   });
@@ -507,9 +455,7 @@ describe("MedTrace edge cases", function () {
       await medTrace.connect(maker).transferCustody(id, distributor.address);
       // Stranger, the pending receiver, and other registered roles are all rejected.
       for (const caller of [stranger, distributor, pharmacy, sensor, admin]) {
-        await expect(medTrace.connect(caller).attachDocument(id, DocType.Other, "QmDoc")).to.be.revertedWith(
-          "MedTrace: only holder or regulator"
-        );
+        await expect(medTrace.connect(caller).attachDocument(id, DocType.Other, "QmDoc")).to.be.revertedWithCustomError(medTrace, "CallerNotHolderOrRegulator");
       }
       expect((await medTrace.getDocuments(id)).length).to.equal(1); // just the CoA
     });
@@ -518,19 +464,13 @@ describe("MedTrace edge cases", function () {
       const id = await registerSampleBatch();
       await medTrace.connect(maker).transferCustody(id, distributor.address);
       await medTrace.connect(distributor).confirmReceipt(id);
-      await expect(medTrace.connect(maker).attachDocument(id, DocType.Other, "QmLate")).to.be.revertedWith(
-        "MedTrace: only holder or regulator"
-      );
+      await expect(medTrace.connect(maker).attachDocument(id, DocType.Other, "QmLate")).to.be.revertedWithCustomError(medTrace, "CallerNotHolderOrRegulator");
     });
 
     it("rejects an empty CID", async function () {
       const id = await registerSampleBatch();
-      await expect(medTrace.connect(maker).attachDocument(id, DocType.ShippingRecord, "")).to.be.revertedWith(
-        "MedTrace: empty CID"
-      );
-      await expect(medTrace.connect(regulator).attachDocument(id, DocType.Other, "")).to.be.revertedWith(
-        "MedTrace: empty CID"
-      );
+      await expect(medTrace.connect(maker).attachDocument(id, DocType.ShippingRecord, "")).to.be.revertedWithCustomError(medTrace, "EmptyCid");
+      await expect(medTrace.connect(regulator).attachDocument(id, DocType.Other, "")).to.be.revertedWithCustomError(medTrace, "EmptyCid");
       expect((await medTrace.getDocuments(id)).length).to.equal(1); // just the CoA
     });
 
@@ -578,16 +518,14 @@ describe("MedTrace edge cases", function () {
     });
 
     it("rejects an empty product name", async function () {
-      await expect(medTrace.connect(maker).registerBatch("", "LOT-001", expiry, 20, 80, "")).to.be.revertedWith(
-        "MedTrace: empty product name"
-      );
+      await expect(medTrace.connect(maker).registerBatch("", "LOT-001", expiry, 20, 80, "")).to.be.revertedWithCustomError(medTrace, "EmptyProductName");
       expect(await medTrace.totalBatches()).to.equal(0n);
     });
 
     it("rejects an empty lot number", async function () {
       await expect(
         medTrace.connect(maker).registerBatch("Insulin 100IU", "", expiry, 20, 80, "")
-      ).to.be.revertedWith("MedTrace: empty lot number");
+      ).to.be.revertedWithCustomError(medTrace, "EmptyLotNumber");
       expect(await medTrace.totalBatches()).to.equal(0n);
     });
 
@@ -595,7 +533,7 @@ describe("MedTrace edge cases", function () {
       const past = (await time.latest()) - ONE_DAY;
       await expect(
         medTrace.connect(maker).registerBatch("Insulin 100IU", "LOT-001", past, 20, 80, "")
-      ).to.be.revertedWith("MedTrace: already expired");
+      ).to.be.revertedWithCustomError(medTrace, "ExpiryNotInFuture");
       expect(await medTrace.totalBatches()).to.equal(0n);
     });
 
@@ -604,17 +542,17 @@ describe("MedTrace edge cases", function () {
       await time.setNextBlockTimestamp(next);
       await expect(
         medTrace.connect(maker).registerBatch("Insulin 100IU", "LOT-001", next, 20, 80, "")
-      ).to.be.revertedWith("MedTrace: already expired");
+      ).to.be.revertedWithCustomError(medTrace, "ExpiryNotInFuture");
       expect(await medTrace.totalBatches()).to.equal(0n);
     });
 
     it("rejects a min temperature equal to or above the max", async function () {
       await expect(
         medTrace.connect(maker).registerBatch("Insulin 100IU", "LOT-001", expiry, 80, 80, "")
-      ).to.be.revertedWith("MedTrace: bad temperature range");
+      ).to.be.revertedWithCustomError(medTrace, "InvalidTemperatureRange");
       await expect(
         medTrace.connect(maker).registerBatch("Insulin 100IU", "LOT-001", expiry, 80, 20, "")
-      ).to.be.revertedWith("MedTrace: bad temperature range");
+      ).to.be.revertedWithCustomError(medTrace, "InvalidTemperatureRange");
       expect(await medTrace.totalBatches()).to.equal(0n);
     });
 
@@ -647,17 +585,17 @@ describe("MedTrace edge cases", function () {
     it("rejects onboarding the zero address", async function () {
       await expect(
         medTrace.registerParticipant(ethers.ZeroAddress, DISTRIBUTOR_ROLE, "Nobody")
-      ).to.be.revertedWith("MedTrace: zero address");
+      ).to.be.revertedWithCustomError(medTrace, "ZeroAddress");
     });
 
     it("rejects roles that are not part of MedTrace", async function () {
       await expect(
         medTrace.registerParticipant(stranger.address, ethers.id("PATIENT_ROLE"), "Patient")
-      ).to.be.revertedWith("MedTrace: unknown role");
+      ).to.be.revertedWithCustomError(medTrace, "UnknownRole");
       // The admin role itself cannot be handed out through registerParticipant.
       await expect(
         medTrace.registerParticipant(stranger.address, ethers.ZeroHash, "Second admin")
-      ).to.be.revertedWith("MedTrace: unknown role");
+      ).to.be.revertedWithCustomError(medTrace, "UnknownRole");
       expect(await medTrace.hasRole(ethers.ZeroHash, stranger.address)).to.equal(false);
     });
 
@@ -676,9 +614,7 @@ describe("MedTrace edge cases", function () {
     it("stops a removed pharmacy from receiving new hand-offs", async function () {
       const id = await registerSampleBatch();
       await medTrace.removeParticipant(pharmacy.address, PHARMACY_ROLE);
-      await expect(medTrace.connect(maker).transferCustody(id, pharmacy.address)).to.be.revertedWith(
-        "MedTrace: receiver not a distributor or pharmacy"
-      );
+      await expect(medTrace.connect(maker).transferCustody(id, pharmacy.address)).to.be.revertedWithCustomError(medTrace, "InvalidReceiver");
       expect((await medTrace.getBatch(id)).status).to.equal(Status.Created);
     });
   });

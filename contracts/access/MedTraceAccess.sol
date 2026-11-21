@@ -22,10 +22,21 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  * can show names instead of raw wallet addresses.
  */
 abstract contract MedTraceAccess is AccessControl {
+    /// @notice Participant registration requires a nonzero wallet.
+    error ZeroAddress();
+
+    /// @notice Participant registration requires one of the five supply-chain roles.
+    error UnknownRole();
+
+    /// @notice Permission to register batches and establish their origin.
     bytes32 public constant MANUFACTURER_ROLE = keccak256("MANUFACTURER_ROLE");
+    /// @notice Permission to receive batches for onward distribution.
     bytes32 public constant DISTRIBUTOR_ROLE  = keccak256("DISTRIBUTOR_ROLE");
+    /// @notice Permission to receive batches and dispense eligible medicine.
     bytes32 public constant PHARMACY_ROLE     = keccak256("PHARMACY_ROLE");
+    /// @notice Permission to certify or recall batches and attach audit documents.
     bytes32 public constant REGULATOR_ROLE    = keccak256("REGULATOR_ROLE");
+    /// @notice Permission to record out-of-range readings from the IoT simulator.
     bytes32 public constant SENSOR_ROLE       = keccak256("SENSOR_ROLE");
 
     /// @notice Display name of each onboarded participant (empty if unknown).
@@ -47,14 +58,15 @@ abstract contract MedTraceAccess is AccessControl {
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        require(account != address(0), "MedTrace: zero address");
-        require(_isSupplyChainRole(role), "MedTrace: unknown role");
+        if (account == address(0)) revert ZeroAddress();
+        if (!_isSupplyChainRole(role)) revert UnknownRole();
         participantName[account] = name;
         _grantRole(role, account);
         emit ParticipantRegistered(account, role, name);
     }
 
     /// @notice Remove a role from a participant (e.g. a pharmacy loses its licence).
+    /// @dev Only the admin; existing batch history and the display name are preserved.
     function removeParticipant(address account, bytes32 role) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _revokeRole(role, account);
         emit ParticipantRemoved(account, role);
