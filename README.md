@@ -102,7 +102,7 @@ The interface (`IMedTrace.sol`) defines every type, event, and function. `MedTra
 | `totalBatches()` | Anyone | Number of batches registered so far (also the newest batch ID) |
 | `verifyBatch(batchId)` | Anyone | Returns `exists`, `safeToUse`, `status`, and `holder` for the patient page |
 
-**Custom errors:** Contract validation uses named custom errors; see [the error names and integration handoff](docs/custom-errors.md) for test assertions, suggested frontend messages, and deployment compatibility. The currently deployed Amoy contract retains its original revert strings until redeployment.
+**Custom errors:** Contract validation uses named custom errors; see [the error names and integration handoff](docs/custom-errors.md) for test assertions, suggested frontend messages, and deployment compatibility.
 
 **Events:** `BatchRegistered`, `CustodyTransferred`, `ReceiptConfirmed`, `BatchDispensed`, `DocumentAttached`, `TempAlert`, `BatchCertified`, `BatchRecalled`, `ParticipantRegistered`, `ParticipantRemoved`.
 
@@ -168,7 +168,7 @@ $env:REPORT_GAS = "true"; npx hardhat test
 | `access/MedTraceAccess.sol` | 100 % | 100 % | 100 % | 100 % |
 | `interfaces/IMedTrace.sol` | 100 % | 100 % | 100 % | 100 % |
 
-Every rejected call is tested with its exact revert reason and, where it matters, a check that the batch did not change. The suites cover each role's permissions, every status change, unknown batch IDs (0 and past the end), expiry down to the second, readings exactly on the temperature limits, empty strings, document types outside the list, and paging with empty, single-entry and maximum-size pages.
+Every rejected call is tested with its exact custom error and, where it matters, a check that the batch did not change. The suites cover each role's permissions, every status change, unknown batch IDs (0 and past the end), expiry down to the second, readings exactly on the temperature limits, empty strings, document types outside the list, and paging with empty, single-entry and maximum-size pages.
 
 ### Gas report
 
@@ -176,18 +176,20 @@ Measured on the local Hardhat network with Solidity 0.8.24, optimizer on (200 ru
 
 | Function | Min | Max | Avg | Calls |
 |---|---:|---:|---:|---:|
-| `registerBatch` | 287,136 | 440,526 | 421,891 | 87 |
-| `certifyBatch` | 65,817 | 207,927 | 144,767 | 18 |
-| `recordTemperatureAlert` | 66,100 | 208,456 | 182,352 | 11 |
-| `attachDocument` | 155,369 | 157,821 | 156,202 | 12 |
-| `recallBatch` | 88,384 | 91,256 | 89,074 | 13 |
+| `registerBatch` | 287,152 | 440,542 | 421,907 | 87 |
+| `certifyBatch` | 65,812 | 207,922 | 144,762 | 18 |
+| `recordTemperatureAlert` | 66,107 | 208,460 | 182,358 | 11 |
+| `attachDocument` | 155,381 | 157,837 | 156,216 | 12 |
+| `recallBatch` | 88,387 | 91,259 | 89,077 | 13 |
 | `registerParticipant` | 36,066 | 75,561 | 75,361 | 543 |
-| `transferCustody` | 72,599 | 75,110 | 73,486 | 65 |
-| `confirmReceipt` | - | - | 72,262 | 51 |
-| `markDispensed` | - | - | 66,990 | 12 |
+| `transferCustody` | 72,603 | 75,117 | 73,491 | 65 |
+| `confirmReceipt` | - | - | 72,257 | 51 |
+| `markDispensed` | - | - | 66,985 | 12 |
 | `removeParticipant` | - | - | 28,890 | 4 |
 
-**Deployment:** `MedTrace` costs 3,014,797 gas, 5.0 % of the block gas limit (60,000,000 on the local Hardhat network).
+**Deployment:** `MedTrace` costs 2,762,390 gas, 4.6 % of the block gas limit (60,000,000 on the local Hardhat network).
+
+Switching from revert strings to custom errors cut deployment gas by 252,407 (8.4 %, down from 3,014,797), because the 23 error messages no longer sit in the contract bytecode. Successful calls cost almost the same as before (within about 20 gas), since custom errors only change the code path that runs when a check fails. A rejected call is 63 to 116 gas cheaper, as it returns a 4-byte error selector instead of an ABI-encoded message.
 
 `registerBatch` is the most expensive call because it stores a new batch record with two strings (product name and lot number), adds the batch to the lot-number index, and writes a history entry that repeats the product name; with a Certificate of Analysis CID it also stores a document and a second history entry. The wide range for `certifyBatch` and `recordTemperatureAlert` comes from the same pattern: when a CID is passed, it is written into the history entry and into a separate document record. Every batch action appends a history entry, so even simple steps such as `confirmReceipt` and `markDispensed` cost around 66,000-73,000 gas. The `registerParticipant` minimum is a wallet that already has the role being onboarded again, which only rewrites its display name. `verifyBatch` and `getHistory` are view functions, so a patient checking a batch sends no transaction and pays nothing.
 
@@ -336,14 +338,14 @@ The team deployment is already live (table below), so you only need these steps 
 
 | | |
 |---|---|
-| Contract | [`0x2749c1613F6dfF8283434885b985d287AC5FA2B8`](https://amoy.polygonscan.com/address/0x2749c1613F6dfF8283434885b985d287AC5FA2B8) |
-| Deployment tx | [`0xe6d69a10…284de0`](https://amoy.polygonscan.com/tx/0xe6d69a10b7f47e037b84218103a5bdef8aa93e432c068cf513d8e187e4284de0) |
-| Block | 52508013 (2026-11-10) |
+| Contract | [`0x194b7DdB2c70b89F8E8A312A9eaAdb8f6cb7A491`](https://amoy.polygonscan.com/address/0x194b7DdB2c70b89F8E8A312A9eaAdb8f6cb7A491) |
+| Deployment tx | [`0xd8e2e839…4dc5fc0a`](https://amoy.polygonscan.com/tx/0xd8e2e8390d291727c05f7aaf0dea2897ebcc21cf95fdd45c84d1e0ea4dc5fc0a) |
+| Block | 53479958 (2026-11-21) |
 | Admin (deployer) | `0xfd3E9AaCF697e02F9a186109838C9d2fD4A6dc78` |
 | Chain ID | 80002 |
-| Source | [Verified on Polygonscan](https://amoy.polygonscan.com/address/0x2749c1613F6dfF8283434885b985d287AC5FA2B8#code) |
+| Source | [Verified on Polygonscan](https://amoy.polygonscan.com/address/0x194b7DdB2c70b89F8E8A312A9eaAdb8f6cb7A491#code) |
 
-The same details are in [`deployments/amoy.json`](deployments/amoy.json). To point the web app at this contract, run `npm run sync-contract -- 0x2749c1613F6dfF8283434885b985d287AC5FA2B8 amoy` in `frontend/`. Anyone can use the patient page (`/verify`) against it without a wallet; each role page needs a wallet that has been onboarded with that role.
+The same details are in [`deployments/amoy.json`](deployments/amoy.json). To point the web app at this contract, run `npm run sync-contract -- 0x194b7DdB2c70b89F8E8A312A9eaAdb8f6cb7A491 amoy` in `frontend/`. Anyone can use the patient page (`/verify`) against it without a wallet; each role page needs a wallet that has been onboarded with that role.
 
 This deployment includes lot-number lookup, the temperature-breach dispense rule and history pagination. It replaces the first deployment at `0x761F1e5344E376aB658e6d2AD8bA2f809c7C2A3f`, which predates those changes and should no longer be used.
 
