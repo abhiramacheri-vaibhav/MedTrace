@@ -6,7 +6,7 @@ Owner: Maulik. Review requested from Neric before merging; Shrey can use the nam
 
 This change replaces all 23 MedTrace revert strings with no-argument custom errors. Function signatures, events, storage layout, validation order and successful behavior are unchanged. Batch errors are declared on `IMedTrace`; participant errors are declared on `MedTraceAccess`. Both appear in the compiled `MedTrace` ABI. `BatchIsRecalled` deliberately differs from the existing `BatchRecalled` event.
 
-The deployed Amoy contract still uses revert strings until Neric redeploys. After deployment, sync the new address **and ABI** together with `cd frontend && npm run sync-contract -- <new-address> amoy`. Do not publish a new ABI against the old deployment. Shrey should retain legacy message handling while adding custom-error decoding.
+The Amoy contract at `0x194b7DdB2c70b89F8E8A312A9eaAdb8f6cb7A491` (deployed 2026-11-21) uses these custom errors; the earlier deployment at `0x2749c1613F6dfF8283434885b985d287AC5FA2B8` still uses revert strings. Sync the address **and ABI** together with `cd frontend && npm run sync-contract -- 0x194b7DdB2c70b89F8E8A312A9eaAdb8f6cb7A491 amoy`. Do not use the new ABI against the old deployment. Shrey should retain legacy message handling while adding custom-error decoding.
 
 ## Names and suggested messages
 
