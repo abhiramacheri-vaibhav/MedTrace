@@ -4,13 +4,21 @@ Team BlockRx · CSE 540 · for the final project, after the interim demo
 
 This is everything you need to pick up your part of the final project code. Read the "Before you start" section first, then go to your own section.
 
+## Latest update (Sat 11/21)
+
+- **Merged:** Neric's tests and README (PR #15) and Maulik's custom errors (PR #16). `main` has 120 passing tests and 100% test coverage.
+- **Next, and it blocks others: Neric redeploys to Amoy.** The live contract still has the old text errors, so the new errors do nothing for the app until then. Steps are in Neric's section below.
+- **Neric, please also review Maulik's error names.** PR #16 was merged before you signed off on them. If you want a name changed, say so before you redeploy, since it can't change afterwards without another redeploy.
+- **Vaibhav and Rohan:** no PRs yet. Rohan's upload decision was due 11/18, so please post it in the group.
+
 ## Key dates
 
 | Date | What |
 |---|---|
 | Mon 11/16 | Plan shared. Read your section and start your branch. |
-| Wed 11/18 | Rohan decides how file uploads will work |
-| Sat 11/21 | Maulik's contract changes merged (everyone else builds on these) |
+| Wed 11/18 | Rohan decides how file uploads will work (still open) |
+| Sat 11/21 | Maulik's contract changes merged ✅ |
+| Sun 11/22 | Neric redeploys to Amoy with the new errors |
 | Sun 11/22, 7 PM AZ | Team meeting: check progress |
 | Mon 11/23 | Most tasks merged |
 | **Wed 11/25** | **Code freeze.** Nothing new after this, only fixes. |
@@ -26,15 +34,13 @@ This is everything you need to pick up your part of the final project code. Read
 
 ## Where things stand
 
-**Done:** contracts live on Polygon Amoy and verified, 100 passing tests, gas table in the README, a web page for every role, the patient check page with live updates, IPFS documents shown in the app, real sensor alerts, lookup by lot number, paged history, and dispensing blocked when a batch got too warm.
+**Done:** contracts live on Polygon Amoy and verified, 120 passing tests with 100% coverage, named custom errors, a rewritten README, gas table in the README, a web page for every role, the patient check page with live updates, IPFS documents shown in the app, real sensor alerts, lookup by lot number, paged history, and dispensing blocked when a batch got too warm.
 
 **Still missing:**
 
 - Files are attached by pasting an IPFS link. There's no upload button.
-- Contract errors are text messages, not custom errors.
-- Some old TODO notes in the code describe work that's already done.
-- No test coverage number.
-- The README's roadmap and usage sections are still from the design draft.
+- The live Amoy contract is the old version, without the custom errors. It needs a redeploy.
+- The app still shows the old text errors and doesn't yet turn the new error names into plain messages.
 - Patients have to type the lot number. There's no QR code.
 
 ## Before you start
@@ -70,7 +76,7 @@ npm run dev
 
 Open http://localhost:5173. To try a role without MetaMask on the local chain, add `?as=<address>` to the link (for example the factory address printed by the seed script). This only works locally.
 
-**Before you push,** switch the app back to Amoy: `npm run sync-contract -- 0x2749c1613F6dfF8283434885b985d287AC5FA2B8 amoy`, and don't commit a `contract.json` that points at localhost.
+`frontend/src/contract.json` isn't committed (it's git-ignored), so run `sync-contract` again whenever you switch between the local chain and Amoy, or after a redeploy.
 
 ### Secrets
 
@@ -96,23 +102,26 @@ Copy `.env.example` to `.env` and fill in what your task needs (Amoy RPC, deploy
 | Task | By |
 |---|---|
 | Upload button on the factory form and on the regulator's certify step, using Rohan's upload code | 11/23 |
-| Show the new contract errors as plain messages in the app (`frontend/src/lib/contract.js`, `friendlyError`) | 11/24 |
+| Show the new contract errors as plain messages in the app (`frontend/src/lib/contract.js`, `friendlyError`), using the messages in `docs/custom-errors.md`. Starts after Neric's redeploy. | 11/24 |
 | Final pass on every role page: wording, empty states, loading, phone screens | 11/25 |
 
 ### Maulik: core contract (contracts/)
 
 | Task | By |
 |---|---|
-| Replace the `require(..., "MedTrace: ...")` text messages with custom errors in `MedTrace.sol` and `MedTraceAccess.sol`. Agree the names with Neric first, since the tests check them. Share the final list with Shrey. | 11/21 |
-| Remove the old TODO notes (top of `MedTrace.sol`). Make sure every public function has a comment saying what it does and why. | 11/21 |
+| ✅ Done (PR #16). Text errors replaced with 23 named custom errors, listed in `docs/custom-errors.md`. | 11/21 |
+| ✅ Done (PR #16). Old TODO notes removed, comments on every public function. | 11/21 |
+| Once Neric confirms the error names, update the top of `docs/custom-errors.md`, which still says they're "proposed". | 11/23 |
 
 ### Neric: tests, gas, deployment, README (test/, scripts/, README.md)
 
 | Task | By |
 |---|---|
-| Run a coverage report (`npx hardhat coverage`) and add tests for anything it shows as missed: documents, expiry, paging, the new errors. Remove the old TODO at the top of `test/MedTrace.test.js`. | 11/23 |
-| Refresh the gas table (`REPORT_GAS=true npx hardhat test`). If the contract changed, redeploy and verify on Amoy and update the address everywhere (see "Changes that affect other people"). | 11/24 |
-| Rewrite the README's setup, deploy and usage sections so a stranger can run everything, and update the roadmap. | 11/24 |
+| ✅ Done (PR #15). 120 tests, 100% coverage, old TODO removed. | 11/23 |
+| Review Maulik's error names in `docs/custom-errors.md` (PR #16 merged without your sign-off). | 11/22 |
+| **Redeploy and verify on Amoy** from the latest `main`: `npm run deploy:amoy`. Then put the new address in the README table and `deployments/amoy-demo-participants.json`, run `npm run demo:onboard`, and post the new address in the group. | 11/22 |
+| Refresh the gas table (`REPORT_GAS=true npx hardhat test`). Custom errors should make deployment and failed calls cheaper. | 11/24 |
+| ✅ Done (PR #15). README setup, usage, deploy and roadmap rewritten. | 11/24 |
 
 ### Vaibhav: access control and patient page (contracts/access/, frontend/src/pages/Verify.jsx)
 
