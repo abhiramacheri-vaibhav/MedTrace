@@ -4,24 +4,28 @@ Team BlockRx · CSE 540 · for the final project, after the interim demo
 
 This is everything you need to pick up your part of the final project code. Read the "Before you start" section first, then go to your own section.
 
-## Latest update (Sat 11/21, evening)
+## Latest update (Wed 11/25, code freeze day)
 
-- **Merged today:** Neric's tests and README (PR #15), Maulik's custom errors (PR #16) and Neric's redeploy (PR #17). `main` has 120 passing tests and 100% coverage.
-- **New contract on Amoy:** `0x194b7DdB2c70b89F8E8A312A9eaAdb8f6cb7A491`. The four demo wallets already have their roles and 0.15 POL each. **Everyone:** in `frontend/`, run `npm run sync-contract -- 0x194b7DdB2c70b89F8E8A312A9eaAdb8f6cb7A491 amoy` to point your app at it.
-- **The new contract has no batches yet.** The insulin, amoxicillin and sensor-test batches stayed on the old contract, so the demo data has to be loaded again before the final presentation (see Neric's section).
-- **Neric, please still review Maulik's error names.** They're live now, so a rename would need another redeploy. Only worth it if a name is actually wrong.
-- **Vaibhav and Rohan:** no PRs yet. Rohan's upload decision was due 11/18, so please post it in the group.
+- **Merged since Saturday:** Neric's redeploy (#17), Rohan's browser uploads and sensor docs (#19), and Shrey's upload buttons on the factory form and the regulator's new Certify dialog (#20).
+- **Open:** Shrey's plain messages for the contract errors (#21). It needs one reviewer.
+- **Still to do before the recording:**
+  - **Vaibhav:** QR code on each batch card. No PR yet.
+  - **Neric:** load the demo batches onto the new contract, plus a few spares (due 11/30).
+  - **Rohan:** try one real upload from the factory form with your upload key, since #20 was tested with a fake Pinata reply.
+  - **Neric:** review Maulik's error names if you haven't yet.
+- **Contract on Amoy:** `0x194b7DdB2c70b89F8E8A312A9eaAdb8f6cb7A491`. In `frontend/`, run `npm run sync-contract -- 0x194b7DdB2c70b89F8E8A312A9eaAdb8f6cb7A491 amoy` if you haven't.
+- **Code freeze is today.** After today only fixes, plus the QR code and the demo data, which are agreed exceptions.
 
 ## Key dates
 
 | Date | What |
 |---|---|
 | Mon 11/16 | Plan shared. Read your section and start your branch. |
-| Wed 11/18 | Rohan decides how file uploads will work (still open) |
+| Wed 11/18 | Rohan decides how file uploads will work ✅ (upload-only key, #19) |
 | Sat 11/21 | Maulik's contract changes merged ✅ |
 | Sat 11/21 | Neric redeploys to Amoy with the new errors ✅ |
 | Sun 11/22, 7 PM AZ | Team meeting: check progress |
-| Mon 11/23 | Most tasks merged |
+| Mon 11/23 | Most tasks merged (all but the QR code and error messages) |
 | **Wed 11/25** | **Code freeze.** Nothing new after this, only fixes. |
 | Fri 12/04, 11:59 PM | Final project due (code, report, presentation) |
 
@@ -39,10 +43,9 @@ This is everything you need to pick up your part of the final project code. Read
 
 **Still missing:**
 
-- Files are attached by pasting an IPFS link. There's no upload button.
 - The new Amoy contract has no demo batches yet.
 - The app still shows the old text errors and doesn't yet turn the new error names into plain messages.
-- Patients have to type the lot number. There's no QR code.
+- Patients have to type the lot number. There's no QR code yet.
 
 ## Before you start
 
@@ -102,8 +105,8 @@ Copy `.env.example` to `.env` and fill in what your task needs (Amoy RPC, deploy
 
 | Task | By |
 |---|---|
-| Upload button on the factory form and on the regulator's certify step, using Rohan's upload code | 11/23 |
-| Show the new contract errors as plain messages in the app (`frontend/src/lib/contract.js`, `friendlyError`), using the messages in `docs/custom-errors.md`. Unblocked now that the redeploy is done. | 11/24 |
+| ✅ Done (PR #20). Upload button on the factory form and a new Certify dialog with an optional certificate. | 11/23 |
+| In review (PR #21). Plain messages for all 25 contract errors, in `frontend/src/lib/errors.js`. | 11/24 |
 | Final pass on every role page: wording, empty states, loading, phone screens | 11/25 |
 
 ### Maulik: core contract (contracts/)
@@ -136,9 +139,10 @@ Copy `.env.example` to `.env` and fill in what your task needs (Amoy RPC, deploy
 
 | Task | By |
 |---|---|
-| Decide how uploads work from the web app. A Pinata key placed in the web page can be seen by anyone, so either use a key that can only upload, or keep the paste-a-link flow and explain why in the README. Tell Shrey. | 11/18 |
-| The upload code the web app calls (Shrey wires up the button). | 11/21 |
-| README section on running the sensor (`npm run iot:simulate`) and the IPFS scripts. | 11/23 |
+| ✅ Done (PR #19). Upload-only key in `frontend/.env`, paste-a-link still works without it. | 11/18 |
+| ✅ Done (PR #19). `frontend/src/lib/ipfs.js`, wired up by Shrey in #20. | 11/21 |
+| Try one real upload from the factory form with your upload key (Shrey tested with a fake reply). Revoke the key after the final recording. | 11/27 |
+| ✅ Done (PR #19). Sensor on Amoy, error table, web uploads. | 11/23 |
 
 ## Where things live
 
