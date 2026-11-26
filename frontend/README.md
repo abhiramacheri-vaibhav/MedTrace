@@ -55,6 +55,7 @@ Open any page with `?record=1` to lock the layout to 1920x1080 and hide developm
 ```
 src/
   lib/contract.js      contract handle, role ids, labels, helpers, friendly errors
+  lib/ipfs.js          IPFS uploads from the browser (optional key, see the root README)
   lib/wallet.jsx       connection state + role detection (React context)
   components/          TopBar, Track (the road), BatchCard, Pip, Confetti, Rail, PageHero, Dialog, Toast, TxButton
   pages/               one file per role + Verify.jsx (patient)

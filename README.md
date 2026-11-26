@@ -67,9 +67,10 @@ medtrace/
 │   ├── amoy.json                   # written by deploy.js: address, tx hash, block
 │   └── amoy-demo-participants.json # public addresses of the Amoy demo wallets
 ├── offchain/
-│   ├── ipfs/uploadToIpfs.js        # IPFS upload helper (Pinata)
+│   ├── ipfs/uploadToIpfs.js        # IPFS upload helper for scripts (Pinata)
 │   └── iot-simulator/simulateSensor.js  # temperature sensor simulator
 ├── frontend/                       # React + Vite web app, one page per role (see frontend/README.md)
+│   ├── src/lib/ipfs.js             # IPFS upload helper for the browser (upload-only key)
 │   ├── src/pages/                  # Factory, Distributor, Pharmacy, Regulator, Admin, Verify (patient)
 │   └── scripts/sync-contract.mjs   # writes src/contract.json (address + ABI) for a network
 ├── docs/
@@ -287,11 +288,28 @@ BATCH_ID=1 npm run iot:simulate
 
 The simulator prints a reading every 3 seconds. When a reading is out of range, it uploads the full reading log to IPFS and records the alert on-chain with that log's CID. The CID also shows up in the batch's documents. By default it stops after one alert. Optional settings: `MAX_ALERTS` (`0` runs until Ctrl+C), `INTERVAL_MS`, `SPIKE_CHANCE` (0 to 1, default 0.1). If `PINATA_JWT` is not set, or the upload fails, the alert is still recorded, just without a log CID.
 
-To run it on Amoy, set `RPC_URL` to the Amoy RPC and `CONTRACT_ADDRESS` to the deployed address. The sensor wallet must be granted `SENSOR_ROLE` by the admin first (`registerParticipant`) and needs a little test POL for gas.
+To run it on Amoy:
+
+1. In `.env`, set `RPC_URL=https://polygon-amoy-bor-rpc.publicnode.com`, `CONTRACT_ADDRESS` to the current address (section 8 or `deployments/amoy.json`; it changes with every redeploy) and `SENSOR_PRIVATE_KEY` to a test-only wallet.
+2. Have the admin give that wallet `SENSOR_ROLE` (Admin page or `registerParticipant`). Roles don't carry over to a new deployment. The wallet also needs a little test POL for gas.
+3. Choose a **spare** batch. One alert marks the batch as breached for good: it can never be dispensed, and the patient page shows "Do not use".
+4. Run `BATCH_ID=<id> npm run iot:simulate`. It prints the IPFS link to the log and the Polygonscan link to the alert.
+
+In PowerShell, set variables first: `$env:BATCH_ID=1; npm run iot:simulate`.
+
+| Message | What to do |
+|---|---|
+| `does not have SENSOR_ROLE` | Ask the admin to register the wallet on the current contract |
+| `No contract at …` | `RPC_URL` and `CONTRACT_ADDRESS` don't belong to the same network |
+| `Batch … does not exist` | Register a batch first, or check `BATCH_ID` |
+| `is Dispensed` / `is Recalled` | The batch is final; use another one |
+| `recording the alert without a log CID` | The alert continues without its log; check `PINATA_JWT` if you want the log |
 
 ### Upload a document to IPFS
 
-Set `PINATA_JWT` in `.env` (Pinata dashboard → API Keys), then:
+Files on IPFS are **public and hard to take back**, so never upload patient data. Only the CID goes on-chain.
+
+**From the command line.** Set `PINATA_JWT` in `.env` (Pinata dashboard → API Keys), then:
 
 ```bash
 node offchain/ipfs/uploadToIpfs.js --test              # check the JWT works
@@ -299,6 +317,16 @@ node offchain/ipfs/uploadToIpfs.js path/to/coa.pdf     # prints the CID and a ga
 ```
 
 From code: `const { uploadFile, uploadJson, gatewayUrl } = require("./offchain/ipfs/uploadToIpfs")`.
+
+**From the web app.** The factory form always accepts a pasted IPFS link or CID, with no key needed. For direct uploads, `frontend/src/lib/ipfs.js` uses a Pinata key that can only upload:
+
+1. In the Pinata dashboard → API Keys → New Key, leave Admin off, allow only `pinFileToIPFS`, and limit the number of uses if offered.
+2. `cp frontend/.env.example frontend/.env`, then set `VITE_PINATA_UPLOAD_JWT` to that key's JWT.
+3. Restart `npm run dev`.
+
+`isUploadConfigured()` says whether a key is set, and `uploadDocument(file)` returns the CID. Accepted files: PDF, PNG, JPG, JSON, CSV and TXT, up to 10 MB.
+
+*Why a separate key?* Anything in the web page can be read by whoever opens it, and Vite copies the key into the page. The scripts' `PINATA_JWT` can do more than upload (listing our files, for example), so it stays in the root `.env` for scripts only. The upload-only key can still be copied and used to fill our storage quota, and the size and type checks run in the browser, so they don't stop someone who has the key. We accept that for a course demo: the key is never committed, and it should be revoked once the demo is over. A production version would put a small server in front that checks the caller and hands out short-lived signed upload URLs.
 
 ## 8. Deployment to Polygon Amoy Testnet
 
