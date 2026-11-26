@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import BatchCard from "../components/BatchCard.jsx";
 import Dialog from "../components/Dialog.jsx";
+import DocField, { cidFromInput, cidInputError } from "../components/DocField.jsx";
 import Empty from "../components/Empty.jsx";
 import Icon from "../components/Icon.jsx";
 import PageHero from "../components/PageHero.jsx";
@@ -30,6 +31,7 @@ export default function Regulator() {
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
   const [recall, setRecall] = useState(null);
+  const [certify, setCertify] = useState(null);
   const rows = useMemo(() => {
     const t = TILES.find((x) => x.id === filter);
     const needle = q.trim().toLowerCase();
@@ -51,15 +53,15 @@ export default function Regulator() {
       {loading && !batches.length ? <Empty mood="wait" color={ROLE_COLORS.regulator} title="Loading batches…" text="Reading the shared record." /> : null}
       {!loading && !rows.length ? <Empty mood="think" color={ROLE_COLORS.regulator} title={q ? "Nothing matches" : EMPTY[filter][0]} text={q ? "Try another product or lot number." : EMPTY[filter][1]} /> : null}
       <div className="cardgrid">
-        {rows.map((b) => <RegCard key={b.id} batch={b} refreshKey={tick} onDone={reload} onRecall={() => setRecall(b)} />)}
+        {rows.map((b) => <RegCard key={b.id} batch={b} refreshKey={tick} onCertify={() => setCertify(b)} onRecall={() => setRecall(b)} />)}
       </div>
+      {certify ? <CertifyDialog batch={certify} onClose={() => setCertify(null)} onDone={reload} /> : null}
       {recall ? <RecallDialog batch={recall} onClose={() => setRecall(null)} onDone={reload} /> : null}
     </main>
   );
 }
 
-function RegCard({ batch: b, onRecall, onDone, refreshKey }) {
-  const w = useWallet();
+function RegCard({ batch: b, onCertify, onRecall, refreshKey }) {
   const recalled = b.status === 4, done = b.status === 3;
   const warm = b.temperatureBreached && !recalled;
   let note = "", noteKind = "info", noteIcon;
@@ -69,15 +71,38 @@ function RegCard({ batch: b, onRecall, onDone, refreshKey }) {
   const actions = recalled || done ? null : (
     <>
       {!b.certified ? (
-        <TxButton className="btn sm" icon="verified" iconFill disabled={warm} title={warm ? "Can't certify a batch that got too warm" : "Certify this batch"}
-          send={() => w.writer.certifyBatch(b.id, "")} success="Certified!" successBody={`${b.productName} ${b.lotNumber} got your stamp.`} failTitle="Couldn't certify it" onDone={onDone}>
-          Certify
-        </TxButton>
+        <button className="btn sm" disabled={warm} title={warm ? "Can't certify a batch that got too warm" : "Certify this batch"} onClick={onCertify}>
+          <Icon name="verified" fill />Certify
+        </button>
       ) : null}
       <button className="btn recall sm" onClick={onRecall}><Icon name="block" />Recall</button>
     </>
   );
   return <BatchCard batch={b} refreshKey={refreshKey} actions={actions} note={note} noteKind={noteKind} noteIcon={noteIcon} badge={warm ? "Needs a look" : ""} badgeKind="alert" alertBorder={warm} />;
+}
+
+// Certify, with an optional regulator certificate (uploaded or pasted) stored as its IPFS CID.
+function CertifyDialog({ batch, onClose, onDone }) {
+  const w = useWallet();
+  const [doc, setDoc] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const bad = cidInputError(doc);
+  return (
+    <Dialog open onClose={uploading ? undefined : onClose} title="Certify this batch?" sub={`${batch.productName} · ${batch.lotNumber}`} art={<Pip size={110} mood="party" color="#5B4CF5" />}
+      footer={<>
+        <button className="btn white" onClick={onClose} disabled={uploading}>Cancel</button>
+        <TxButton className="btn" icon="verified" iconFill disabled={bad || uploading} send={() => w.writer.certifyBatch(batch.id, cidFromInput(doc))}
+          success="Certified!" successBody={`${batch.productName} ${batch.lotNumber} got your stamp.`} failTitle="Couldn't certify it"
+          onDone={() => { onDone(); onClose(); }}>
+          Certify batch
+        </TxButton>
+      </>}>
+      <p className="ink2" style={{ fontSize: 17 }}>Pharmacies and patients will see this batch as checked by you.</p>
+      <div className="d-left">
+        <DocField label="Your certificate" value={doc} onChange={setDoc} onBusy={setUploading} color="#5B4CF5" />
+      </div>
+    </Dialog>
+  );
 }
 
 const REASONS = [
