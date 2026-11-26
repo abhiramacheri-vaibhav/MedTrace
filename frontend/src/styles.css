@@ -146,6 +146,11 @@ h1, h2, h3 { font-family: var(--display); font-weight: 700; line-height: 1.1; }
 .finput.err { border-color: var(--danger); background: #FFF5F4; }
 .finput::placeholder { color: var(--ink3); }
 .ferr { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 800; color: var(--danger-ink); animation: rise 250ms ease-out both; }
+.docfield { display: flex; flex-direction: column; gap: 8px; }
+.docfield .frow input:disabled { color: var(--ink3); }
+.doc-up { height: 42px; flex-shrink: 0; font-size: 15px; }
+.doc-ok { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 15px; font-weight: 800; color: var(--safe-ink); animation: rise 250ms ease-out both; }
+.doc-hint { font-size: 14px; color: var(--ink2); }
 .ferr .ic { font-size: 20px; font-variation-settings: 'FILL' 1; }
 .temp-box { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; border: 2.5px solid var(--ink); background: #fff; }
 .temp-box.err { border-color: var(--danger); background: #FFF5F4; }
