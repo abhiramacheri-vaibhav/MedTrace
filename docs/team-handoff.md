@@ -1,6 +1,6 @@
 # MedTrace: What's Left
 
-Team BlockRx · CSE 540 · updated Wed 11/25
+Team BlockRx · CSE 540 · updated Fri 11/27
 
 Only open tasks are listed. Everything else is merged on `main`.
 
@@ -8,7 +8,7 @@ Only open tasks are listed. Everything else is merged on `main`.
 
 | Date | What |
 |---|---|
-| **Wed 11/25** | **Code freeze.** Only fixes after today, plus the QR code and demo data below. |
+| **Wed 11/25** | **Code freeze.** Only fixes after today, plus the demo data below. |
 | Sun 11/29, 7 PM AZ | Team meeting: check the list below is empty |
 | Mon 11/30 | Demo batches loaded on Amoy |
 | Fri 12/04, 11:59 PM | Final project due (code, report, presentation) |
@@ -19,7 +19,6 @@ Only open tasks are listed. Everything else is merged on `main`.
 
 | Task | By |
 |---|---|
-| QR code on each batch card that opens the patient page for that lot. The link already works: `/verify?lot=<lot number>`. | 11/27 |
 | Check that the regulator's recall still updates the patient page live on the new contract. | 11/27 |
 
 ### Neric
