@@ -1,6 +1,6 @@
 # Contract custom errors: integration handoff
 
-Owner: Maulik. Review requested from Neric before merging; Shrey can use the names below for `friendlyError`. These names are proposed by this branch and have not yet been agreed with teammates.
+Owner: Maulik. These names are final: they shipped in #16 and are live on the Amoy contract deployed in #17. The web app turns each one into a plain message in `frontend/src/lib/errors.js` (#21).
 
 ## Compatibility
 
