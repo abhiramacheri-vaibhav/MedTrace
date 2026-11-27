@@ -2,6 +2,7 @@
 // road, an optional note, actions, and a collapsed Details row for the technical values.
 // Only real readings are shown: the reading chip appears only when the sensor reported a breach.
 import { useEffect, useRef, useState } from "react";
+import QRCode from "qrcode";
 import { Link } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import Track from "./Track.jsx";
@@ -16,6 +17,30 @@ const CidLink = ({ cid, children }) => (
   <a className="doclink" href={ipfsUrl(cid)} target="_blank" rel="noreferrer" title={cid}>{children || `${cid.slice(0, 10)}…`}<Icon name="open_in_new" /></a>
 );
 const deg = (tenths) => { const v = tenths / 10; return Number.isInteger(v) ? `${v}` : v.toFixed(1); };
+
+const PatientQr = ({ lotNumber }) => {
+  const [src, setSrc] = useState("");
+
+  useEffect(() => {
+    const url = new URL(`/verify?lot=${encodeURIComponent(lotNumber)}`, window.location.origin).href;
+    let active = true;
+
+    QRCode.toDataURL(url, { width: 128, margin: 1, errorCorrectionLevel: "M" })
+      .then((dataUrl) => { if (active) setSrc(dataUrl); })
+      .catch((err) => console.warn("Could not generate patient verification QR code:", err));
+
+    return () => { active = false; };
+  }, [lotNumber]);
+
+  if (!src) return null;
+
+  return (
+    <a className="patient-qr" href={`/verify?lot=${encodeURIComponent(lotNumber)}`} title={`Open patient verification for lot ${lotNumber}`} aria-label={`Open patient verification for lot ${lotNumber}`}>
+      <img src={src} alt={`QR code for patient verification of lot ${lotNumber}`} />
+      <span>Scan to verify</span>
+    </a>
+  );
+};
 
 export default function BatchCard({ batch, actions, note, noteKind = "info", noteIcon, badge, badgeKind = "new", alertBorder = false, refreshKey }) {
   const { reader, who } = useWallet();
@@ -82,7 +107,10 @@ export default function BatchCard({ batch, actions, note, noteKind = "info", not
           <span className="k">History</span>
           <span className="v txt">{history.map((h, i) => <div key={i}>{ACTION_LABELS[h.action]} · {label(h.actor)} · {when(h.timestamp)}{h.details ? <> · {isCid(h.details) ? <CidLink cid={h.details} /> : h.details}</> : null}</div>)}</span>
           <span className="k">Patient view</span>
-          <span className="v txt"><Link className="doclink" to={`/verify?lot=${encodeURIComponent(batch.lotNumber)}`}>See what a patient sees for lot {batch.lotNumber}<Icon name="arrow_forward" /></Link></span>
+          <span className="v txt patient-view">
+            <Link className="doclink" to={`/verify?lot=${encodeURIComponent(batch.lotNumber)}`}>See what a patient sees for lot {batch.lotNumber}<Icon name="arrow_forward" /></Link>
+            <PatientQr lotNumber={batch.lotNumber} />
+          </span>
         </div>
       ) : null}
     </article>
