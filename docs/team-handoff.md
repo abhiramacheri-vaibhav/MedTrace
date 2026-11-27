@@ -29,6 +29,10 @@ Only open tasks are listed. Everything else is merged on `main`.
 - **Live recall checked** on the current contract code: the patient page turns to "Do not use" by itself within about 4 seconds and shows the reason.
 - **`docs/custom-errors.md`** now says the error names are final (PR #23, merged).
 
+## Report draft
+
+**[Read the report draft (PDF)](report-draft.pdf)** — 6 pages, IEEE two-column. Check the sections that cover your work and the Contributions bullet with your name, and post corrections in the group by **Sun 11/29**. Please don't share the file outside the team: the final report goes through a plagiarism checker that compares against the web, so this draft will be removed from GitHub before we submit.
+
 ## Open tasks
 
 ### Neric
@@ -64,7 +68,7 @@ Only open tasks are listed. Everything else is merged on `main`.
 | Task | By |
 |---|---|
 | Final pass on every role page: wording, empty states, loading, phone screens. | 11/28 |
-| Final edit of the report and the presentation script. | 12/01 |
+| Final edit of the report and the presentation script. Delete the draft PDF and this branch from GitHub before submitting. | 12/01 |
 
 ## Before you start
 
