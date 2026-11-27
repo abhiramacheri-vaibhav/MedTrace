@@ -27,7 +27,7 @@ Only open tasks are listed. Everything else is merged on `main`.
 
   The patient page shows the newest batch for a lot, so the spares have their own lot numbers. If a take uses a spare, say its lot instead.
 - **Live recall checked** on the current contract code: the patient page turns to "Do not use" by itself within about 4 seconds and shows the reason.
-- **`docs/custom-errors.md`** now says the error names are final (PR #23, one paragraph, needs a reviewer).
+- **`docs/custom-errors.md`** now says the error names are final (PR #23, merged).
 
 ## Open tasks
 
@@ -36,7 +36,7 @@ Only open tasks are listed. Everything else is merged on `main`.
 | Task | By |
 |---|---|
 | Give the sensor wallet `SENSOR_ROLE` on the new contract (Admin page or `registerParticipant`). Only the admin wallet can do this, and batch #3 needs it. | 11/29 |
-| Review PR #23 and, if you haven't, the error names in `docs/custom-errors.md`. | 11/29 |
+| If you haven't yet, look over the error names in `docs/custom-errors.md`. They're live, so only flag one that's actually wrong. | 11/29 |
 | Check your Results and gas sections of the report draft. | 11/29 |
 
 ### Rohan
